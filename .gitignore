@@ -4,6 +4,7 @@ dist
 .env.local
 *.log
 .DS_Store
+package-lock.json
 
 # Deployed SPA copy (built on VPS / CI)
 backend/public
