@@ -1,0 +1,9 @@
+node_modules
+dist
+.env
+.env.local
+*.log
+.DS_Store
+
+# Deployed SPA copy (built on VPS / CI)
+backend/public

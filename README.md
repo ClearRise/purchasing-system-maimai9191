@@ -1,70 +1,30 @@
-# 有限会社かにわでは 仕入・見積管理システム
-
-MERN-style stack: **React + MUI + Tailwind** (frontend), **Node + Express + PostgreSQL** (backend).
-
-## 機能
-
-- ユーザー管理・ロール別権限（管理者 / 仕入 / 営業）
-- マスタ管理（発注先・店舗・商品・得意先）
-- 月別仕入価格入力・仕入先比較・履歴
-- 見積書自動生成・編集・送信ステータス
-- 見積シミュレーション
-- ダッシュボード（ランキング・アラート）
-- システム設定（ランク別粗利率）
-
-## セットアップ
-
-### 1. PostgreSQL
-
-```sql
-CREATE DATABASE kaniwa_purchasing;
-```
-
-### 2. Backend
-
-```bash
-cd backend
-cp .env.example .env
-# .env を編集（DB接続情報）
-npm install
-npm run dev
-```
-
-API: http://localhost:8000
-
-### 3. Frontend
-
-```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
-```
-
-UI: http://localhost:8080
-
-## 初期ログイン
-
-| 項目 | 値 |
-|------|-----|
-| メール | admin@kaniwa.local |
-| パスワード | Admin123! |
-
-## ディレクトリ構成
+# 有限会社かにわでは 仕入・見積管理
 
 ```
 purchasing-system/
-├── backend/src/
-│   ├── config/       DB, seed, constants
-│   ├── models/       Sequelize models
-│   ├── services/     Business logic
-│   ├── controllers/  HTTP handlers
-│   ├── routes/       API routes
-│   └── middlewares/  Auth, RBAC, validation
-└── frontend/src/
-    ├── pages/        Screen components
-    ├── components/   Layout, shared UI
-    ├── store/        Redux (auth)
-    ├── hooks/        Permissions
-    └── theme/        MUI theme (日本語UI)
+├── frontend/     # React (Vite)
+├── backend/      # Express API (+ serves frontend from backend/public)
+└── .github/workflows/deploy.yml
 ```
+
+## Local
+
+```bash
+# DB
+CREATE DATABASE kaniwa_purchasing;
+
+# Backend  → http://localhost:8000
+cd backend && cp .env.example .env && npm install && npm run dev
+
+# Frontend → http://localhost:8080
+cd frontend && cp .env.example .env && npm install && npm run dev
+```
+
+Login: `admin@kaniwa.local` / `Admin123!`
+
+## Deploy (GitHub Actions → VPS)
+
+Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `DEPLOY_PATH`, `PM2_APP`, `PUBLIC_URL`
+
+On VPS: clone repo to `DEPLOY_PATH`, create `backend/.env`, install Node + pm2.  
+Push to `main` → pull → build frontend → copy to `backend/public` → build backend → pm2 restart.

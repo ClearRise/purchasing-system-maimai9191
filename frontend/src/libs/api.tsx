@@ -1,8 +1,8 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { API_URL, TOKEN_KEY } from '../constants/config';
+import { API_BASE_URL, TOKEN_KEY } from '../constants/config';
 
 export const api: AxiosInstance = axios.create({
-  baseURL: `${API_URL}/api`,
+  baseURL: API_BASE_URL,
   timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });

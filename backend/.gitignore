@@ -1,7 +1,8 @@
-
 # dependencies
 node_modules
 /.env
 /dist
+/public
 src/public
 src/logs
+*.log
