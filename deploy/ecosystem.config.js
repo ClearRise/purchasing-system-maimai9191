@@ -5,8 +5,8 @@
 module.exports = {
   apps: [
     {
-      name: 'inventory-system-ochiai',
-      cwd: '/home/ubuntu/inventory-system-ochiai/backend',
+      name: 'purchasing-system',
+      cwd: '/home/ubuntu/purchasing-system/backend',
       script: 'dist/index.js',
       instances: 1,
       exec_mode: 'fork',
@@ -14,28 +14,6 @@ module.exports = {
       env: {
         NODE_ENV: 'production',
       },
-    },
-    {
-      name: 'inventory-system-taiyou',
-      cwd: '/home/ubuntu/inventory-system-taiyou/backend',
-      script: 'dist/index.js',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: true,
-      env: {
-        NODE_ENV: 'production',
-      },
-    },
-    {
-      name: 'inventory-system-lne',
-      cwd: '/home/ubuntu/inventory-system-lne/backend',
-      script: 'dist/index.js',
-      instances: 1,
-      exec_mode: 'fork',
-      autorestart: true,
-      env: {
-        NODE_ENV: 'production',
-      },
-    },
+    }
   ],
 };
