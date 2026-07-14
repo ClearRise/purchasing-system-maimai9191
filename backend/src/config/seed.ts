@@ -2,6 +2,10 @@ import bcrypt from 'bcrypt';
 import { User, RankMarginSetting, SystemSetting, Category, Supplier } from '@/models';
 import logger from '@/utils/logger';
 
+const COMPANY_NAME = '有限会社かにわでは';
+const ADMIN_EMAIL = 'admin@kaniwa.local';
+const LEGACY_ADMIN_EMAIL = 'admin@ishii.local';
+
 const DEFAULT_MARGINS = [
   { rank: 'A' as const, defaultMarginRate: 15, minMarginRate: 10 },
   { rank: 'B' as const, defaultMarginRate: 20, minMarginRate: 12 },
@@ -13,12 +17,14 @@ const DEFAULT_MARGINS = [
 const DEFAULT_SETTINGS: Record<string, string> = {
   price_increase_alert_pct: '10',
   abnormal_value_alert_pct: '30',
-  company_name: '株式会社イシイフーズ',
+  company_name: COMPANY_NAME,
   company_tel: '03-6433-3200',
   company_fax: '03-6433-3202',
   order_cutoff_time: '23:00',
-  email_signature: '株式会社イシイフーズ\nTEL: 03-6433-3200',
+  email_signature: `${COMPANY_NAME}\nTEL: 03-6433-3200`,
 };
+
+const BRANDING_SETTING_KEYS = new Set(['company_name', 'email_signature']);
 
 const DEFAULT_CATEGORIES = [
   { categoryCode: 'VEG', name: '野菜', sortOrder: 1 },
@@ -32,11 +38,17 @@ const DEFAULT_SUPPLIERS = [
 ];
 
 export async function seedDatabase(): Promise<void> {
-  const adminExists = await User.findOne({ where: { email: 'admin@ishii.local' } });
+  const legacyAdmin = await User.findOne({ where: { email: LEGACY_ADMIN_EMAIL } });
+  if (legacyAdmin) {
+    await legacyAdmin.update({ email: ADMIN_EMAIL });
+    logger.info(`Migrated admin email ${LEGACY_ADMIN_EMAIL} → ${ADMIN_EMAIL}`);
+  }
+
+  const adminExists = await User.findOne({ where: { email: ADMIN_EMAIL } });
   if (!adminExists) {
     const password = await bcrypt.hash('Admin123!', 10);
     await User.create({
-      email: 'admin@ishii.local',
+      email: ADMIN_EMAIL,
       username: 'admin',
       password,
       firstName: '管理者',
@@ -44,7 +56,7 @@ export async function seedDatabase(): Promise<void> {
       role: 'admin',
       isActive: true,
     });
-    logger.info('Seeded admin user (admin@ishii.local / Admin123!)');
+    logger.info(`Seeded admin user (${ADMIN_EMAIL} / Admin123!)`);
   }
 
   for (const margin of DEFAULT_MARGINS) {
@@ -55,10 +67,14 @@ export async function seedDatabase(): Promise<void> {
   }
 
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
-    await SystemSetting.findOrCreate({
+    const [setting, created] = await SystemSetting.findOrCreate({
       where: { settingKey: key },
       defaults: { settingKey: key, settingValue: value },
     });
+    if (!created && BRANDING_SETTING_KEYS.has(key) && /イシイ|ishii/i.test(setting.settingValue || '')) {
+      await setting.update({ settingValue: value });
+      logger.info(`Updated system setting ${key} to new company branding`);
+    }
   }
 
   for (const cat of DEFAULT_CATEGORIES) {

@@ -7,7 +7,7 @@ export interface IProductAttributes {
   storeId: number;
   orderDisplayName?: string;
   productCode: string;
-  ishiiProductCode?: string;
+  companyProductCode?: string;
   name: string;
   spec?: string;
   specUnit?: string;
@@ -32,7 +32,7 @@ class Product extends Model<IProductAttributes, IProductCreation> implements IPr
   public storeId!: number;
   public orderDisplayName?: string;
   public productCode!: string;
-  public ishiiProductCode?: string;
+  public companyProductCode?: string;
   public name!: string;
   public spec?: string;
   public specUnit?: string;
@@ -56,7 +56,11 @@ Product.init(
     storeId: { type: DataTypes.INTEGER, allowNull: false },
     orderDisplayName: { type: DataTypes.STRING(100), allowNull: true },
     productCode: { type: DataTypes.STRING(50), allowNull: false },
-    ishiiProductCode: { type: DataTypes.STRING(50), allowNull: true },
+    companyProductCode: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: 'ishii_product_code',
+    },
     name: { type: DataTypes.STRING(100), allowNull: false },
     spec: { type: DataTypes.STRING(50), allowNull: true },
     specUnit: { type: DataTypes.STRING(20), allowNull: true },

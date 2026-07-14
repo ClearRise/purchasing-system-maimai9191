@@ -2,6 +2,7 @@ import React from 'react';
 import { AppBar, Toolbar, IconButton, Typography, Box } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import UserAccountMenu from 'src/components/navbar/UserAccountMenu';
+import { COMPANY_NAME } from 'src/constants/config';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -25,7 +26,7 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => (
         <MenuIcon fontSize="small" />
       </IconButton>
       <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main', flex: 1 }}>
-        イシイフーズ
+        {COMPANY_NAME}
       </Typography>
       <Box sx={{ flexShrink: 0 }}>
         <UserAccountMenu variant="icon" />

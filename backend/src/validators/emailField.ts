@@ -1,6 +1,6 @@
 import Joi from 'joi';
 
-/** Allows internal domains such as admin@ishii.local (Joi rejects unknown TLDs by default). */
+/** Allows internal domains such as admin@kaniwa.local (Joi rejects unknown TLDs by default). */
 export const emailField = (required = true) => {
   let schema = Joi.string()
     .email({ tlds: { allow: false } })

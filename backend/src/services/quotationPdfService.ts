@@ -118,7 +118,7 @@ class QuotationPdfService {
   }
 
   buildDocumentDefinition(data: Awaited<ReturnType<typeof this.buildPdfData>>): TDocumentDefinitions {
-    const companyName = data.settings.company_name || '株式会社イシイフーズ';
+    const companyName = data.settings.company_name || '有限会社かにわでは';
     const companyTel = data.settings.company_tel || '';
     const companyFax = data.settings.company_fax || '';
     const customerName = data.customer?.name || '';

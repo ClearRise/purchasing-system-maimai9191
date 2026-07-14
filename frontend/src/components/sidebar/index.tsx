@@ -11,6 +11,7 @@ import {
   Toolbar,
   alpha,
 } from '@mui/material';
+import { COMPANY_NAME } from 'src/constants/config';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import StoreIcon from '@mui/icons-material/Store';
 import InventoryIcon from '@mui/icons-material/Inventory';
@@ -115,7 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       <Toolbar sx={{ px: 2, minHeight: { xs: 48, md: 56 }, flexShrink: 0 }}>
         <Box>
           <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1.2 }}>
-            イシイフーズ
+            {COMPANY_NAME}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
             仕入・見積管理

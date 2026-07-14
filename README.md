@@ -1,4 +1,4 @@
-# イシイフーズ 仕入・見積管理システム
+# 有限会社かにわでは 仕入・見積管理システム
 
 MERN-style stack: **React + MUI + Tailwind** (frontend), **Node + Express + PostgreSQL** (backend).
 
@@ -17,7 +17,7 @@ MERN-style stack: **React + MUI + Tailwind** (frontend), **Node + Express + Post
 ### 1. PostgreSQL
 
 ```sql
-CREATE DATABASE ishii_purchasing;
+CREATE DATABASE kaniwa_purchasing;
 ```
 
 ### 2. Backend
@@ -47,7 +47,7 @@ UI: http://localhost:8080
 
 | 項目 | 値 |
 |------|-----|
-| メール | admin@ishii.local |
+| メール | admin@kaniwa.local |
 | パスワード | Admin123! |
 
 ## ディレクトリ構成
