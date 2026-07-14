@@ -157,7 +157,7 @@ const SettingsPage: React.FC = () => {
     <Box sx={{ maxWidth: 1200 }}>
       <PageHeader title="システム設定" subtitle="ランク別粗利率・会社情報の管理" />
 
-      <Grid container spacing={3} alignItems="stretch">
+      <Grid container spacing={3} sx={{ alignItems: 'stretch' }}>
         <Grid size={{ xs: 12, lg: 5 }}>
           <SettingsSection
             title="ランク別粗利率"
@@ -388,7 +388,7 @@ const SettingsPage: React.FC = () => {
                         onChange={(e) => handleSealUpload(e.target.files?.[0] || null)}
                       />
                     </Button>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
                       PNG / JPEG / WebP · 最大5MB · 240px以内に自動リサイズ
                     </Typography>
                   </Box>
