@@ -27,7 +27,7 @@ export const getRankMargins = async (_req: Request, res: Response) => {
 
 export const updateRankMargin = async (req: Request, res: Response) => {
   try {
-    const data = await settingsService.updateRankMargin(req.params.rank, req.body);
+    const data = await settingsService.updateRankMargin(String(req.params.rank), req.body);
     res.json({ success: true, message: '粗利率を更新しました', data });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, message: error.message });

@@ -88,7 +88,7 @@ export const getAllUsers = async (req: Request, res: Response) => {
  */
 export const getUserById = async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id), 10);
 
     const user = await userService.findUserById(userId);
 
@@ -115,7 +115,7 @@ export const getUserById = async (req: Request, res: Response) => {
  */
 export const updateUser = async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id), 10);
     const userData = req.body;
 
     const user = await userService.updateUser(userId, userData);
@@ -147,7 +147,7 @@ export const updateUser = async (req: Request, res: Response) => {
  */
 export const deactivateUser = async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id), 10);
 
     const success = await userService.deactivateUser(userId);
 
@@ -173,7 +173,7 @@ export const deactivateUser = async (req: Request, res: Response) => {
  */
 export const deleteUser = async (req: Request, res: Response) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = parseInt(String(req.params.id), 10);
 
     const success = await userService.deleteUser(userId);
 
