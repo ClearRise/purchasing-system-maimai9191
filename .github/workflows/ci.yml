@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend (production mode)
+        run: npm ci && npm run build
+        working-directory: frontend
+        env:
+          VITE_BACKEND_URL: https://ci-build-check.local
+
+      - name: Build backend
+        run: npm ci && npm run build
+        working-directory: backend
