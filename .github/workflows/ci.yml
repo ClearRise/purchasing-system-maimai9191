@@ -16,11 +16,11 @@ jobs:
           node-version: '20'
 
       - name: Build frontend (production mode)
-        run: npm ci && npm run build
+        run: npm install && npm run build
         working-directory: frontend
         env:
           VITE_BACKEND_URL: https://ci-build-check.local
 
       - name: Build backend
-        run: npm ci && npm run build
+        run: npm install && npm run build
         working-directory: backend

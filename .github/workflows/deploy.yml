@@ -45,8 +45,8 @@ jobs:
             export VITE_BACKEND_URL="$PUBLIC_URL"
             export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
 
-            echo ">>> frontend: npm ci"
-            npm ci --prefix frontend
+            echo ">>> frontend: npm install"
+            npm install --prefix frontend
             echo ">>> frontend: npm run build"
             npm run build --prefix frontend
             test -f frontend/dist/index.html
@@ -57,8 +57,8 @@ jobs:
             cp -r frontend/dist/. backend/public/
             test -f backend/public/index.html
 
-            echo ">>> backend: npm ci"
-            npm ci --prefix backend
+            echo ">>> backend: npm install"
+            npm install --prefix backend
             echo ">>> backend: npm run build"
             npm run build --prefix backend
             test -f backend/dist/index.js || {
