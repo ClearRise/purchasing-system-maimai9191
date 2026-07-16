@@ -28,16 +28,28 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   },
 });
 
+/** Create missing tables from Sequelize models. Alter columns only in development. */
+export async function ensureSchema(): Promise<void> {
+  await import('@/models');
+  await sequelize.sync({ alter: NODE_ENV === 'development' });
+  logger.info('Database schema ready.');
+}
+
 export const connectDatabase = async (): Promise<void> => {
   try {
     await sequelize.authenticate();
     logger.info('Database connection established.');
 
-    if (NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      logger.info('Database models synchronized.');
-      const { seedDatabase } = await import('@/config/seed');
-      await seedDatabase();
+    const { tablesExist, seedDatabase } = await import('@/config/seed');
+    const existed = await tablesExist();
+
+    await ensureSchema();
+
+    if (!existed) {
+      logger.info('Tables were missing — running initial seed.');
+      await seedDatabase(true);
+    } else {
+      await seedDatabase(false);
     }
   } catch (error) {
     logger.error('Unable to connect to the database:', error);
