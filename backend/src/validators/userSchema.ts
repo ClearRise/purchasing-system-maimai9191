@@ -43,27 +43,23 @@ export const createUserSchema = Joi.object({
   password: passwordField.required(),
 
   firstName: Joi.string()
-    .min(1)
     .max(100)
-    .required()
+    .optional()
+    .allow('', null)
     .trim()
+    .default('')
     .messages({
-      'string.min': 'First name must be at least 1 character long',
       'string.max': 'First name must not exceed 100 characters',
-      'string.empty': 'First name is required',
-      'any.required': 'First name is required',
     }),
 
   lastName: Joi.string()
-    .min(1)
     .max(100)
-    .required()
+    .optional()
+    .allow('', null)
     .trim()
+    .default('')
     .messages({
-      'string.min': 'Last name must be at least 1 character long',
       'string.max': 'Last name must not exceed 100 characters',
-      'string.empty': 'Last name is required',
-      'any.required': 'Last name is required',
     }),
 
   role: Joi.string()
@@ -101,22 +97,20 @@ export const updateUserSchema = Joi.object({
   password: passwordField.optional().allow('', null),
 
   firstName: Joi.string()
-    .min(1)
     .max(100)
     .optional()
+    .allow('', null)
     .trim()
     .messages({
-      'string.min': 'First name must be at least 1 character long',
       'string.max': 'First name must not exceed 100 characters',
     }),
 
   lastName: Joi.string()
-    .min(1)
     .max(100)
     .optional()
+    .allow('', null)
     .trim()
     .messages({
-      'string.min': 'Last name must be at least 1 character long',
       'string.max': 'Last name must not exceed 100 characters',
     }),
 

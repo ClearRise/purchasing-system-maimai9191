@@ -23,7 +23,9 @@ const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ variant = 'sidebar' }
     navigate('/login');
   };
 
-  const displayName = user ? `${user.lastName} ${user.firstName}` : '';
+  const displayName = user
+    ? ([user.lastName, user.firstName].filter(Boolean).join(' ') || user.username)
+    : '';
   const roleLabel = user ? ROLE_LABELS[user.role as UserRole] : '';
 
   if (variant === 'icon') {
@@ -47,7 +49,7 @@ const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ variant = 'sidebar' }
       }}
     >
       <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.8125rem', flexShrink: 0 }}>
-        {user?.lastName?.charAt(0) || 'U'}
+        {user?.lastName?.charAt(0) || user?.username?.charAt(0)?.toUpperCase() || 'U'}
       </Avatar>
       <Box sx={{ minWidth: 0, flex: 1 }}>
         <Typography variant="subtitle2" noWrap>

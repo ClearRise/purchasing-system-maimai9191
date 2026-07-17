@@ -7,8 +7,8 @@ class User extends Model<IUserAttributes, IUserCreationAttributes> implements IU
   public email!: string;
   public username!: string;
   public password!: string;
-  public firstName!: string;
-  public lastName!: string;
+  public firstName!: string | null;
+  public lastName!: string | null;
   public role!: IUserAttributes['role'];
   public isActive!: boolean;
   public lastLogin?: Date;
@@ -16,7 +16,7 @@ class User extends Model<IUserAttributes, IUserCreationAttributes> implements IU
   public readonly updatedAt!: Date;
 
   public getFullName(): string {
-    return `${this.lastName} ${this.firstName}`;
+    return [this.lastName, this.firstName].filter(Boolean).join(' ').trim();
   }
 }
 
@@ -26,8 +26,8 @@ User.init(
     email: { type: DataTypes.STRING(255), allowNull: false },
     username: { type: DataTypes.STRING(50), allowNull: false },
     password: { type: DataTypes.STRING(255), allowNull: false },
-    firstName: { type: DataTypes.STRING(100), allowNull: false },
-    lastName: { type: DataTypes.STRING(100), allowNull: false },
+    firstName: { type: DataTypes.STRING(100), allowNull: true, defaultValue: '' },
+    lastName: { type: DataTypes.STRING(100), allowNull: true, defaultValue: '' },
     role: {
       type: DataTypes.ENUM('admin', 'purchase', 'sales'),
       allowNull: false,

@@ -20,8 +20,8 @@ type SystemUser = {
   id: number;
   email: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role: UserRole;
   isActive: boolean;
   lastLogin?: string | null;
@@ -88,8 +88,9 @@ const SystemUsersPanel: React.FC = () => {
     const q = search.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter((u) =>
-      [u.username, u.email, u.firstName, u.lastName, `${u.lastName} ${u.firstName}`]
-        .some((v) => v.toLowerCase().includes(q))
+      [u.username, u.email, u.firstName, u.lastName]
+        .filter(Boolean)
+        .some((v) => String(v).toLowerCase().includes(q))
     );
   }, [rows, search]);
 
@@ -111,8 +112,8 @@ const SystemUsersPanel: React.FC = () => {
       email: row.email,
       username: row.username,
       password: '',
-      firstName: row.firstName,
-      lastName: row.lastName,
+      firstName: row.firstName || '',
+      lastName: row.lastName || '',
       role: row.role,
       isActive: row.isActive ? 'true' : 'false',
     }]);
@@ -124,8 +125,6 @@ const SystemUsersPanel: React.FC = () => {
     const missing: string[] = [];
     if (!form.email.trim()) missing.push('メール');
     if (!form.username.trim()) missing.push('ユーザー名');
-    if (!form.firstName.trim()) missing.push('名');
-    if (!form.lastName.trim()) missing.push('姓');
     if (!form.role) missing.push('ロール');
     if (mode === 'create' && !form.password.trim()) missing.push('パスワード');
     if (missing.length) {
@@ -166,7 +165,9 @@ const SystemUsersPanel: React.FC = () => {
       enqueueSnackbar('自分自身のアカウントは削除できません', { variant: 'warning' });
       return;
     }
-    if (!confirm(`${row.lastName} ${row.firstName}（${row.username}）を削除してよろしいですか？`)) return;
+    const nameLabel = [row.lastName, row.firstName].filter(Boolean).join(' ');
+    const label = nameLabel ? `${nameLabel}（${row.username}）` : row.username;
+    if (!confirm(`${label} を削除してよろしいですか？`)) return;
     try {
       await api.delete(endpoints.users.detail(row.id));
       enqueueSnackbar('ユーザーを削除しました', { variant: 'success' });
@@ -180,10 +181,16 @@ const SystemUsersPanel: React.FC = () => {
     { field: 'username', headerName: 'ユーザー名', width: 120 },
     { field: 'email', headerName: 'メール', flex: 1, minWidth: 180 },
     {
-      field: 'name',
-      headerName: '氏名',
-      width: 140,
-      valueGetter: (_v, row) => `${row.lastName} ${row.firstName}`,
+      field: 'lastName',
+      headerName: '姓',
+      width: 100,
+      valueGetter: (_v, row) => row.lastName || '—',
+    },
+    {
+      field: 'firstName',
+      headerName: '名',
+      width: 100,
+      valueGetter: (_v, row) => row.firstName || '—',
     },
     {
       field: 'role',
@@ -294,7 +301,6 @@ const SystemUsersPanel: React.FC = () => {
             <TextField
               size="small"
               label="姓"
-              required
               value={form.lastName}
               onChange={(e) => setForms((prev) => [{ ...prev[0], lastName: e.target.value }])}
               fullWidth
@@ -302,7 +308,6 @@ const SystemUsersPanel: React.FC = () => {
             <TextField
               size="small"
               label="名"
-              required
               value={form.firstName}
               onChange={(e) => setForms((prev) => [{ ...prev[0], firstName: e.target.value }])}
               fullWidth

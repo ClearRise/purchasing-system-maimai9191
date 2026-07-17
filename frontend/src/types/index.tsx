@@ -4,8 +4,8 @@ export interface IUser {
   id: number;
   email: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role: UserRole;
   isActive: boolean;
   lastLogin?: string;

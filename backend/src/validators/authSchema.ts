@@ -16,22 +16,22 @@ export const registerSchema = Joi.object({
       'any.required': 'Password is required',
     }),
   firstName: Joi.string()
-    .min(1)
     .max(100)
-    .required()
+    .optional()
+    .allow('', null)
+    .trim()
+    .default('')
     .messages({
-      'string.min': 'First name must be at least 1 character long',
       'string.max': 'First name must not exceed 100 characters',
-      'any.required': 'First name is required',
     }),
   lastName: Joi.string()
-    .min(1)
     .max(100)
-    .required()
+    .optional()
+    .allow('', null)
+    .trim()
+    .default('')
     .messages({
-      'string.min': 'Last name must be at least 1 character long',
       'string.max': 'Last name must not exceed 100 characters',
-      'any.required': 'Last name is required',
     }),
 });
 

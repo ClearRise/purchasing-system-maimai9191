@@ -41,8 +41,8 @@ export interface IRegisterRequest {
   email: string;
   password: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string;
+  lastName?: string;
   role?: UserRole;
 }
 
@@ -50,8 +50,8 @@ export interface IAuthUser {
   id: number;
   email: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role: UserRole;
   isActive: boolean;
   lastLogin?: Date;
@@ -67,8 +67,8 @@ export interface IUserAttributes {
   email: string;
   username: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role: UserRole;
   isActive: boolean;
   lastLogin?: Date;
@@ -77,7 +77,10 @@ export interface IUserAttributes {
 }
 
 export interface IUserCreationAttributes
-  extends Optional<IUserAttributes, 'id' | 'role' | 'isActive' | 'lastLogin' | 'createdAt' | 'updatedAt'> {}
+  extends Optional<
+    IUserAttributes,
+    'id' | 'role' | 'isActive' | 'lastLogin' | 'firstName' | 'lastName' | 'createdAt' | 'updatedAt'
+  > {}
 
 export interface IUserPaginationOptions extends IPaginationOptions {
   isActive?: boolean;

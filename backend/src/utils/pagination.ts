@@ -42,8 +42,8 @@ export function toPublicUser(user: {
   id: number;
   email: string;
   username: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string | null;
+  lastName?: string | null;
   role: string;
   isActive: boolean;
   lastLogin?: Date;
@@ -53,8 +53,8 @@ export function toPublicUser(user: {
     id: user.id,
     email: user.email,
     username: user.username,
-    firstName: user.firstName,
-    lastName: user.lastName,
+    firstName: user.firstName ?? '',
+    lastName: user.lastName ?? '',
     role: user.role,
     isActive: user.isActive,
     lastLogin: user.lastLogin,
