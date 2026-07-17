@@ -7,7 +7,7 @@ import endpoints from 'src/libs/endpoints';
 import { compressSealImage } from 'src/utils/compressSealImage';
 import CompanySettingsPanel from './settings/CompanySettingsPanel';
 import SystemUsersPanel from './settings/SystemUsersPanel';
-import ProductSettingsPanel from './settings/ProductSettingsPanel';
+import ProductSettingsPanel, { type SpecItem } from './settings/ProductSettingsPanel';
 import CustomerSettingsPanel from './settings/CustomerSettingsPanel';
 import OtherSettingsPanel from './settings/OtherSettingsPanel';
 
@@ -27,7 +27,7 @@ const SettingsPage: React.FC = () => {
   const [margins, setMargins] = useState<any[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [units, setUnits] = useState<string[]>([]);
-  const [specs, setSpecs] = useState<string[]>([]);
+  const [specs, setSpecs] = useState<SpecItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingLookups, setSavingLookups] = useState(false);
 
@@ -41,7 +41,14 @@ const SettingsPage: React.FC = () => {
       setMargins(mRes.data.data);
       setSettings(sRes.data.data);
       setUnits(unitRes.data.data || []);
-      setSpecs(specRes.data.data || []);
+      const rawSpecs = specRes.data.data || [];
+      setSpecs(
+        Array.isArray(rawSpecs)
+          ? rawSpecs.map((s: string | SpecItem) =>
+            typeof s === 'string' ? { value: s, unit: '' } : { value: s.value, unit: s.unit || '' }
+          )
+          : []
+      );
     }).finally(() => setLoading(false));
   }, []);
 
@@ -68,16 +75,28 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const saveLookup = async (kind: 'unit' | 'spec', values: string[]) => {
+  const saveUnits = async () => {
     setSavingLookups(true);
     try {
-      const res = await api.put(endpoints.admin.lookupOptions(kind), { values });
-      const next = res.data.data || [];
-      if (kind === 'unit') setUnits(next);
-      else setSpecs(next);
-      enqueueSnackbar(kind === 'unit' ? '単位マスタを保存しました' : '規格マスタを保存しました', {
-        variant: 'success',
-      });
+      const res = await api.put(endpoints.admin.lookupOptions('unit'), { values: units });
+      setUnits(res.data.data || []);
+      enqueueSnackbar('単位マスタを保存しました', { variant: 'success' });
+    } catch (err: any) {
+      enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
+    } finally {
+      setSavingLookups(false);
+    }
+  };
+
+  const saveSpecs = async () => {
+    setSavingLookups(true);
+    try {
+      const res = await api.put(endpoints.admin.lookupOptions('spec'), { items: specs });
+      const raw = res.data.data || [];
+      setSpecs(
+        raw.map((s: SpecItem) => ({ value: s.value, unit: s.unit || '' }))
+      );
+      enqueueSnackbar('規格マスタを保存しました', { variant: 'success' });
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
     } finally {
@@ -147,8 +166,8 @@ const SettingsPage: React.FC = () => {
           saving={savingLookups}
           onUnitsChange={setUnits}
           onSpecsChange={setSpecs}
-          onSaveUnits={() => saveLookup('unit', units)}
-          onSaveSpecs={() => saveLookup('spec', specs)}
+          onSaveUnits={saveUnits}
+          onSaveSpecs={saveSpecs}
         />
       )}
 

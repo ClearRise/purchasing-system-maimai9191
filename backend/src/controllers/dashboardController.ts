@@ -71,6 +71,13 @@ export const getLookupOptions = async (req: Request, res: Response) => {
   try {
     const kind = String(req.params.kind || '');
     const data = await lookupOptionService.listByKind(kind, false);
+    if (kind === 'spec') {
+      res.json({
+        success: true,
+        data: data.map((r) => ({ value: r.value, unit: r.relatedValue || '' })),
+      });
+      return;
+    }
     res.json({ success: true, data: data.map((r) => r.value) });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, message: error.message });
@@ -80,9 +87,25 @@ export const getLookupOptions = async (req: Request, res: Response) => {
 export const replaceLookupOptions = async (req: Request, res: Response) => {
   try {
     const kind = String(req.params.kind || '');
-    const values = Array.isArray(req.body?.values) ? req.body.values : [];
-    const rows = await lookupOptionService.replaceKind(kind, values);
-    res.json({ success: true, message: 'マスタを更新しました', data: rows.map((r) => r.value) });
+    if (kind === 'unit') {
+      const values = Array.isArray(req.body?.values) ? req.body.values : [];
+      const rows = await lookupOptionService.replaceUnits(values);
+      res.json({ success: true, message: '単位マスタを更新しました', data: rows.map((r) => r.value) });
+      return;
+    }
+    if (kind === 'spec') {
+      const items = Array.isArray(req.body?.items)
+        ? req.body.items
+        : [];
+      const rows = await lookupOptionService.replaceSpecs(items);
+      res.json({
+        success: true,
+        message: '規格マスタを更新しました',
+        data: rows.map((r) => ({ value: r.value, unit: r.relatedValue || '' })),
+      });
+      return;
+    }
+    res.status(400).json({ success: false, message: '不正な区分です' });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }

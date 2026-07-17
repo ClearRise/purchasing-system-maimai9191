@@ -29,20 +29,20 @@ VALUES
   ('FRUIT', '果物', 4, NOW(), NOW())
 ON CONFLICT (category_code) DO NOTHING;
 
--- Product units / specs (規格 = 数量+単位, e.g. 200g / 1 kg)
-INSERT INTO lookup_options (kind, value, sort_order, is_active, created_at, updated_at)
+-- Product units / specs (規格 belongs to 単位 via related_value)
+INSERT INTO lookup_options (kind, value, related_value, sort_order, is_active, created_at, updated_at)
 VALUES
-  ('unit', 'g', 0, true, NOW(), NOW()),
-  ('unit', 'kg', 1, true, NOW(), NOW()),
-  ('unit', 'PC', 2, true, NOW(), NOW()),
-  ('unit', 'case', 3, true, NOW(), NOW()),
-  ('unit', 'CS', 4, true, NOW(), NOW()),
-  ('unit', 'hon', 5, true, NOW(), NOW()),
-  ('unit', 'tama', 6, true, NOW(), NOW()),
-  ('spec', '100g', 0, true, NOW(), NOW()),
-  ('spec', '200g', 1, true, NOW(), NOW()),
-  ('spec', '500g', 2, true, NOW(), NOW()),
-  ('spec', '1 kg', 3, true, NOW(), NOW())
+  ('unit', 'g', NULL, 0, true, NOW(), NOW()),
+  ('unit', 'kg', NULL, 1, true, NOW(), NOW()),
+  ('unit', 'PC', NULL, 2, true, NOW(), NOW()),
+  ('unit', 'case', NULL, 3, true, NOW(), NOW()),
+  ('unit', 'CS', NULL, 4, true, NOW(), NOW()),
+  ('unit', 'hon', NULL, 5, true, NOW(), NOW()),
+  ('unit', 'tama', NULL, 6, true, NOW(), NOW()),
+  ('spec', '100g', 'g', 0, true, NOW(), NOW()),
+  ('spec', '200g', 'g', 1, true, NOW(), NOW()),
+  ('spec', '500g', 'g', 2, true, NOW(), NOW()),
+  ('spec', '1 kg', 'kg', 3, true, NOW(), NOW())
 ON CONFLICT (kind, value) DO NOTHING;
 
 -- Suppliers

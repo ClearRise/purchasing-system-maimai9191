@@ -127,6 +127,8 @@ export const getLookupData = handle(async (_req, res) => {
       categories,
       units: options.units,
       specs: options.specs,
+      specItems: options.specItems,
+      specsByUnit: options.specsByUnit,
     },
   });
 });

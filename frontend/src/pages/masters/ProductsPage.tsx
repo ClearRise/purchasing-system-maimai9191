@@ -38,7 +38,7 @@ const emptyForm = (defaultUnit = 'PC'): ProductForm => ({
 const ProductsPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { canManageMasters } = usePermissions();
-  const { units, specs } = useProductLookups();
+  const { units, specsByUnit } = useProductLookups();
   const [rows, setRows] = useState<IProduct[]>([]);
   const [stores, setStores] = useState<IStore[]>([]);
   const [storeId, setStoreId] = useState('');
@@ -135,7 +135,8 @@ const ProductsPage: React.FC = () => {
     }
     setEditId(null);
     const base = emptyForm(defaultUnit);
-    if (specs.length) base.spec = specs[0];
+    const related = specsByUnit[base.unit] || [];
+    if (related.length) base.spec = related[0];
     setForm(base);
     setPanelOpen(true);
   };
@@ -173,7 +174,9 @@ const ProductsPage: React.FC = () => {
         await api.post(endpoints.masters.products, payload);
         enqueueSnackbar('商品を登録しました', { variant: 'success' });
         const next = emptyForm(defaultUnit);
-        if (specs.length) next.spec = form.spec || specs[0];
+        next.unit = form.unit || defaultUnit;
+        const related = specsByUnit[next.unit] || [];
+        if (related.length) next.spec = related.includes(form.spec) ? form.spec : related[0];
         setForm(next);
       }
       fetchProducts(storeId);
@@ -212,8 +215,8 @@ const ProductsPage: React.FC = () => {
 
   const columns: GridColDef[] = useMemo(() => [
     { field: 'name', headerName: '品名', flex: 1, minWidth: 150 },
-    { field: 'spec', headerName: '規格', width: 100 },
     { field: 'unit', headerName: '単位', width: 70 },
+    { field: 'spec', headerName: '規格', width: 100 },
     { field: 'categoryLabel', headerName: 'カテゴリ', width: 120 },
     { field: 'note', headerName: '備考', flex: 1, minWidth: 120 },
     ...(canManageMasters
@@ -241,7 +244,19 @@ const ProductsPage: React.FC = () => {
   ], [canManageMasters, editId, storeId]);
 
   const unitOptions = form.unit && !units.includes(form.unit) ? [form.unit, ...units] : units;
-  const specOptions = form.spec && !specs.includes(form.spec) ? [form.spec, ...specs] : specs;
+  const relatedSpecs = specsByUnit[form.unit] || [];
+  const specOptions = form.spec && !relatedSpecs.includes(form.spec)
+    ? [form.spec, ...relatedSpecs]
+    : relatedSpecs;
+
+  const handleUnitChange = (nextUnit: string) => {
+    const related = specsByUnit[nextUnit] || [];
+    setForm((prev) => ({
+      ...prev,
+      unit: nextUnit,
+      spec: related.includes(prev.spec) ? prev.spec : (related[0] || ''),
+    }));
+  };
 
   return (
     <Box sx={pageTableRootSx}>
@@ -458,27 +473,29 @@ const ProductsPage: React.FC = () => {
                   size="small"
                   autoFocus
                 />
-                <TextField
-                  select
-                  label="規格"
-                  value={f.spec}
-                  onChange={(e) => setForm((prev) => ({ ...prev, spec: e.target.value }))}
-                  fullWidth
-                  size="small"
-                  disabled={!specOptions.length}
-                >
-                  {specOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-                </TextField>
-                <TextField
-                  select
-                  label="単位"
-                  value={f.unit}
-                  onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-                  fullWidth
-                  size="small"
-                >
-                  {unitOptions.map((u) => <MenuItem key={u} value={u}>{u}</MenuItem>)}
-                </TextField>
+              <TextField
+                select
+                label="単位"
+                value={f.unit}
+                onChange={(e) => handleUnitChange(e.target.value)}
+                fullWidth
+                size="small"
+                required
+              >
+                {unitOptions.map((u) => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+              </TextField>
+              <TextField
+                select
+                label="規格"
+                value={f.spec}
+                onChange={(e) => setForm((prev) => ({ ...prev, spec: e.target.value }))}
+                fullWidth
+                size="small"
+                disabled={!specOptions.length}
+                helperText={!specOptions.length ? 'この単位に紐づく規格がありません（システム設定で登録）' : undefined}
+              >
+                {specOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+              </TextField>
                 <TextField
                   label="カテゴリ"
                   value={f.categoryLabel}
