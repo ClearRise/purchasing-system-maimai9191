@@ -7,6 +7,7 @@ const columns = [
   { field: 'name', headerName: '得意先名', flex: 1, minWidth: 180 },
   { field: 'rank', headerName: 'ランク', width: 80 },
   { field: 'nameKana', headerName: 'フリガナ', width: 130 },
+  { field: 'nameAbbr', headerName: '略号', width: 100 },
   { field: 'email', headerName: 'メール', width: 180 },
   { field: 'note', headerName: '備考', flex: 1, minWidth: 120 },
 ];
