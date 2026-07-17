@@ -1,4 +1,4 @@
-# 有限会社かにわでは 仕入・見積管理
+# 有限会社かにわ 仕入・見積管理
 
 ```
 purchasing-system/
@@ -41,9 +41,9 @@ Schema changes for production must go in `backend/sql/migrations/` (numbered SQL
 
 ## Deploy (GitHub Actions → VPS)
 
-Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `DEPLOY_PATH`, `PM2_APP`, `PUBLIC_URL`
+Secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`, `DEPLOY_PATH`, `PM2_APP`
 
-On VPS: clone repo to `DEPLOY_PATH`, create `backend/.env`, install Node + pm2.  
-Push to `main` → pull → build frontend → copy to `backend/public` → build backend → pm2 restart.  
-First start creates tables + seed automatically.
+On VPS: clone repo to `DEPLOY_PATH`, create `backend/.env` (`SERVER_PORT=5000`, DB, JWT), install Node + pm2.  
+Point nginx at `http://127.0.0.1:5000` for `app.kaniwaseika.com` (Express serves UI + `/api`).
 
+Push to `main` → pull → build frontend with relative `/api` → copy to `backend/public` → build backend → pm2 restart → health check.

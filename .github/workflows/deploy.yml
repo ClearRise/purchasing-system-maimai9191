@@ -23,16 +23,14 @@ jobs:
             trim() { printf '%s' "$1" | tr -d '\r' | head -n1; }
             DEPLOY_PATH="$(trim "${{ secrets.DEPLOY_PATH }}")"
             PM2_APP="$(trim "${{ secrets.PM2_APP }}")"
-            PUBLIC_URL="$(trim "${{ secrets.PUBLIC_URL }}")"
 
-            if [ -z "$DEPLOY_PATH" ] || [ -z "$PM2_APP" ] || [ -z "$PUBLIC_URL" ]; then
-              echo "::error::DEPLOY_PATH, PM2_APP, and PUBLIC_URL must be non-empty"
+            if [ -z "$DEPLOY_PATH" ] || [ -z "$PM2_APP" ]; then
+              echo "::error::DEPLOY_PATH and PM2_APP must be non-empty"
               exit 1
             fi
 
             echo "=== Deploy ==="
             printf 'Path: %s\n' "$DEPLOY_PATH"
-            printf 'URL:  %s\n' "$PUBLIC_URL"
             node -v
             npm -v
 
@@ -42,12 +40,15 @@ jobs:
             echo ">>> git pull"
             git pull origin main
 
-            export VITE_BACKEND_URL="$PUBLIC_URL"
+            # Same-origin production: Express serves UI + /api.
+            # Do NOT bake an absolute API host into the frontend build.
+            export VITE_BACKEND_URL=
+            unset VITE_API_URL || true
             export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=1536}"
 
             echo ">>> frontend: npm install"
             npm install --prefix frontend
-            echo ">>> frontend: npm run build"
+            echo ">>> frontend: npm run build (relative /api)"
             npm run build --prefix frontend
             test -f frontend/dist/index.html
 
@@ -92,4 +93,16 @@ jobs:
             fi
             pm2 save
             pm2 describe "$PM2_APP"
+
+            # Health check against Node (not nginx)
+            APP_PORT="$(grep -E '^SERVER_PORT=' .env 2>/dev/null | head -n1 | cut -d= -f2- | tr -d '\r\"' || true)"
+            APP_PORT="${APP_PORT:-5000}"
+            echo ">>> health check http://127.0.0.1:${APP_PORT}/api/health"
+            sleep 2
+            curl -sf "http://127.0.0.1:${APP_PORT}/api/health" || {
+              echo "::error::Backend health check failed on port ${APP_PORT}"
+              pm2 logs "$PM2_APP" --lines 40 --nostream || true
+              exit 1
+            }
             echo "=== Deploy finished ==="
+            echo "Ensure nginx proxies app.kaniwaseika.com → 127.0.0.1:${APP_PORT}"
