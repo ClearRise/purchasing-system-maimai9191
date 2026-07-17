@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box, Paper, TextField, MenuItem, ToggleButton, ToggleButtonGroup, Typography, Divider,
 } from '@mui/material';
-import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import CalendarMonthOutlinedIcon from '@mui/icons-material/CalendarMonthOutlined';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import PageHeader from 'src/components/common/PageHeader';
 import PriceMatrixTable from 'src/components/purchase/PriceMatrixTable';
 import { api } from 'src/libs/api';
@@ -176,11 +176,11 @@ const PriceComparePage: React.FC = () => {
           sx={{ flexShrink: 0 }}
         >
           <ToggleButton value="supplier" sx={{ gap: 0.75, px: 1.5, py: 0.75, fontSize: '0.8125rem' }}>
-            <LocalShippingIcon sx={{ fontSize: 16 }} />
+            <LocalShippingOutlinedIcon sx={{ fontSize: 16 }} />
             発注先
           </ToggleButton>
           <ToggleButton value="month" sx={{ gap: 0.75, px: 1.5, py: 0.75, fontSize: '0.8125rem' }}>
-            <CalendarMonthIcon sx={{ fontSize: 16 }} />
+            <CalendarMonthOutlinedIcon sx={{ fontSize: 16 }} />
             月別
           </ToggleButton>
         </ToggleButtonGroup>

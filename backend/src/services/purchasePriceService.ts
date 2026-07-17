@@ -317,26 +317,35 @@ class PurchasePriceService {
 
         if (existing) {
           const before = Number(existing.purchasePrice);
+          const after = Number(item.purchasePrice);
+          // Skip no-op saves so history / alerts are not polluted
+          if (before === after
+            && (item.note ?? null) === (existing.note ?? null)
+            && item.unit === existing.unit) {
+            continue;
+          }
           await existing.update(
             { purchasePrice: item.purchasePrice, unit: item.unit, note: item.note, createdBy: userId },
             { transaction }
           );
-          await PurchasePriceLog.create(
-            {
-              purchasePriceId: existing.id,
-              productId: item.productId,
-              supplierId: item.supplierId,
-              targetYearMonth,
-              changeType: 'update',
-              priceBefore: before,
-              priceAfter: item.purchasePrice,
-              unit: item.unit,
-              changedBy: userId,
-              changedAt: new Date(),
-              note: item.note,
-            },
-            { transaction }
-          );
+          if (before !== after) {
+            await PurchasePriceLog.create(
+              {
+                purchasePriceId: existing.id,
+                productId: item.productId,
+                supplierId: item.supplierId,
+                targetYearMonth,
+                changeType: 'update',
+                priceBefore: before,
+                priceAfter: item.purchasePrice,
+                unit: item.unit,
+                changedBy: userId,
+                changedAt: new Date(),
+                note: item.note,
+              },
+              { transaction }
+            );
+          }
         } else {
           const created = await PurchasePrice.create(
             {

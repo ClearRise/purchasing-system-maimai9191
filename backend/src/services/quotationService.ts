@@ -35,7 +35,7 @@ class QuotationService {
     const { page, limit, sortBy, sortOrder } = parsePagination(query);
     const where: Record<string, unknown> = {};
     if (query.status) where.status = query.status;
-    if (query.customerId) where.customerId = query.customerId;
+    if (query.customerId) where.customerId = Number(query.customerId);
 
     const { count, rows } = await Quotation.findAndCountAll({
       where,

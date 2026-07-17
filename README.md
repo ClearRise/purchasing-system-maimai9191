@@ -22,16 +22,22 @@ cd frontend && cp .env.example .env && npm install && npm run dev
 
 Login: `admin@kaniwaseika.com` / `Admin123!`
 
-On startup the backend creates missing tables, then seeds if the DB is empty.
+On startup the backend creates missing tables, runs SQL migrations, then seeds if empty.
 
 ```bash
 # Manual seed (after npm run build on VPS)
 cd backend && npm run seed
 cd backend && npm run seed -- --force   # re-insert safe upserts
 
+# Manual migrations only
+cd backend && npm run migrate
+
 # Local without build
 cd backend && npm run seed:dev
+cd backend && npm run migrate:dev
 ```
+
+Schema changes for production must go in `backend/sql/migrations/` (numbered SQL, safe for real data).
 
 ## Deploy (GitHub Actions → VPS)
 

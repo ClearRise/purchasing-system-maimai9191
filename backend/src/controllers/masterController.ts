@@ -112,10 +112,21 @@ export const deleteProduct = handle(async (req, res) => {
 });
 
 export const getLookupData = handle(async (_req, res) => {
-  const [suppliers, stores, categories] = await Promise.all([
+  const lookupOptionService = (await import('@/services/lookupOptionService')).default;
+  const [suppliers, stores, categories, options] = await Promise.all([
     masterService.getAllActiveSuppliers(),
     masterService.getAllActiveStores(),
     masterService.listCategories(),
+    lookupOptionService.listGrouped(true),
   ]);
-  res.json({ success: true, data: { suppliers, stores, categories } });
+  res.json({
+    success: true,
+    data: {
+      suppliers,
+      stores,
+      categories,
+      units: options.units,
+      specs: options.specs,
+    },
+  });
 });

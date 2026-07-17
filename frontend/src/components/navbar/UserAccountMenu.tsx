@@ -1,6 +1,6 @@
 import React from 'react';
 import { Avatar, Box, IconButton, Tooltip, Typography } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
+import LogoutOutlinedIcon from '@mui/icons-material/LogoutOutlined';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { logout } from 'src/store/slices/authSlice';
@@ -30,7 +30,7 @@ const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ variant = 'sidebar' }
     return (
       <Tooltip title="ログアウト">
         <IconButton size="small" onClick={handleLogout} sx={{ color: 'text.secondary' }}>
-          <LogoutIcon fontSize="small" />
+          <LogoutOutlinedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
     );
@@ -50,10 +50,10 @@ const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ variant = 'sidebar' }
         {user?.lastName?.charAt(0) || 'U'}
       </Avatar>
       <Box sx={{ minWidth: 0, flex: 1 }}>
-        <Typography variant="body2" noWrap sx={{ fontWeight: 500, lineHeight: 1.3, fontSize: '0.8125rem' }}>
+        <Typography variant="subtitle2" noWrap>
           {displayName}
         </Typography>
-        <Typography variant="caption" color="text.secondary" noWrap sx={{ fontSize: '0.6875rem' }}>
+        <Typography variant="caption" color="text.secondary" noWrap>
           {roleLabel}
         </Typography>
       </Box>
@@ -67,7 +67,7 @@ const UserAccountMenu: React.FC<UserAccountMenuProps> = ({ variant = 'sidebar' }
             '&:hover': { color: 'error.main', bgcolor: 'error.50' },
           }}
         >
-          <LogoutIcon fontSize="small" />
+          <LogoutOutlinedIcon fontSize="small" />
         </IconButton>
       </Tooltip>
     </Box>

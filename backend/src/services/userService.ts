@@ -34,6 +34,13 @@ class UserService {
   }
 
   /**
+   * Find user by username
+   */
+  async findUserByUsername(username: string): Promise<User | null> {
+    return User.findOne({ where: { username } });
+  }
+
+  /**
    * Find all users with pagination
    */
   async findAllUsers(options: IUserPaginationOptions): Promise<IPaginatedResponse<User>> {

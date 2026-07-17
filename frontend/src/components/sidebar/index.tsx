@@ -9,19 +9,18 @@ import {
   Typography,
   Box,
   Toolbar,
-  alpha,
 } from '@mui/material';
-import { COMPANY_NAME } from 'src/constants/config';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import StoreIcon from '@mui/icons-material/Store';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import PeopleIcon from '@mui/icons-material/People';
-import LocalShippingIcon from '@mui/icons-material/LocalShipping';
-import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
-import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
-import DescriptionIcon from '@mui/icons-material/Description';
-import CalculateIcon from '@mui/icons-material/Calculate';
-import SettingsIcon from '@mui/icons-material/Settings';
+import { COMPANY_NAME, SYSTEM_NAME, LOGO_URL } from 'src/constants/config';
+import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
+import StoreOutlinedIcon from '@mui/icons-material/StoreOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
+import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
+import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
+import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import CalculateOutlinedIcon from '@mui/icons-material/CalculateOutlined';
+import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import UserAccountMenu from 'src/components/navbar/UserAccountMenu';
 import { Path } from 'src/constants/enums';
 import { usePermissions } from 'src/hooks/usePermissions';
@@ -63,36 +62,36 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
     {
       title: 'メイン',
       items: [
-        { label: 'ダッシュボード', path: Path.Dashboard, icon: <DashboardIcon fontSize="small" />, show: true },
+        { label: 'ダッシュボード', path: Path.Dashboard, icon: <DashboardOutlinedIcon fontSize="small" />, show: true },
       ],
     },
     {
       title: 'マスタ管理',
       items: [
-        { label: '発注先', path: Path.Suppliers, icon: <LocalShippingIcon fontSize="small" />, show: perms.canManageMasters },
-        { label: '店舗', path: Path.Stores, icon: <StoreIcon fontSize="small" />, show: perms.canManageMasters || perms.isSales },
-        { label: '商品', path: Path.Products, icon: <InventoryIcon fontSize="small" />, show: true },
-        { label: '得意先', path: Path.Customers, icon: <PeopleIcon fontSize="small" />, show: perms.canManageCustomers },
+        { label: '発注先', path: Path.Suppliers, icon: <LocalShippingOutlinedIcon fontSize="small" />, show: perms.canManageMasters },
+        { label: '店舗', path: Path.Stores, icon: <StoreOutlinedIcon fontSize="small" />, show: perms.canManageMasters || perms.isSales },
+        { label: '商品', path: Path.Products, icon: <Inventory2OutlinedIcon fontSize="small" />, show: true },
+        { label: '得意先', path: Path.Customers, icon: <PeopleOutlinedIcon fontSize="small" />, show: perms.canManageCustomers },
       ],
     },
     {
       title: '仕入管理',
       items: [
-        { label: '月別仕入価格', path: Path.PurchasePrices, icon: <AttachMoneyIcon fontSize="small" />, show: perms.canManagePrices || perms.isSales },
-        { label: '仕入価格比較', path: Path.PriceCompare, icon: <CompareArrowsIcon fontSize="small" />, show: perms.canManagePrices || perms.isSales },
+        { label: '月別仕入価格', path: Path.PurchasePrices, icon: <AttachMoneyOutlinedIcon fontSize="small" />, show: perms.canManagePrices || perms.isSales },
+        { label: '仕入価格比較', path: Path.PriceCompare, icon: <CompareArrowsOutlinedIcon fontSize="small" />, show: perms.canManagePrices || perms.isSales },
       ],
     },
     {
       title: '見積管理',
       items: [
-        { label: '見積書一覧', path: Path.Quotations, icon: <DescriptionIcon fontSize="small" />, show: perms.canManageQuotations },
-        { label: '見積シミュレーション', path: Path.Simulation, icon: <CalculateIcon fontSize="small" />, show: perms.canManageQuotations },
+        { label: '見積書一覧', path: Path.Quotations, icon: <DescriptionOutlinedIcon fontSize="small" />, show: perms.canManageQuotations },
+        { label: '見積シミュレーション', path: Path.Simulation, icon: <CalculateOutlinedIcon fontSize="small" />, show: perms.canManageQuotations },
       ],
     },
     {
       title: 'システム',
       items: [
-        { label: '設定', path: Path.Settings, icon: <SettingsIcon fontSize="small" />, show: perms.canManageSettings },
+        { label: '設定', path: Path.Settings, icon: <SettingsOutlinedIcon fontSize="small" />, show: perms.canManageSettings },
       ],
     },
   ];
@@ -113,13 +112,37 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
         overflow: 'hidden',
       }}
     >
-      <Toolbar sx={{ px: 2, minHeight: { xs: 48, md: 56 }, flexShrink: 0 }}>
+      <Toolbar
+        sx={{
+          px: 2,
+          py: 2,
+          minHeight: { xs: 88, md: 100 },
+          flexShrink: 0,
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1,
+          textAlign: 'center',
+        }}
+      >
+        <Box
+          component="img"
+          src={LOGO_URL}
+          alt={COMPANY_NAME}
+          sx={{
+            height: 64,
+            width: 'auto',
+            maxWidth: '100%',
+            objectFit: 'contain',
+            display: 'block',
+          }}
+        />
         <Box>
-          <Typography variant="subtitle1" sx={{ fontWeight: 700, color: 'primary.main', lineHeight: 1.2 }}>
+          <Typography variant="subtitle2" color="primary.main" sx={{ lineHeight: 1.3 }}>
             {COMPANY_NAME}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6875rem' }}>
-            仕入・見積管理
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block' }}>
+            {SYSTEM_NAME}
           </Typography>
         </Box>
       </Toolbar>
@@ -144,16 +167,11 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
           return (
             <Box key={section.title} sx={{ mb: 1.5 }}>
               <Typography
-                variant="caption"
+                variant="overline"
                 sx={{
                   px: 1.5,
                   py: 0.5,
                   display: 'block',
-                  fontWeight: 600,
-                  fontSize: '0.6875rem',
-                  letterSpacing: '0.05em',
-                  color: 'text.secondary',
-                  textTransform: 'uppercase',
                 }}
               >
                 {section.title}
@@ -167,31 +185,42 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
                       selected={active}
                       onClick={() => { navigate(item.path); onClose(); }}
                       sx={{
-                        py: 0.75,
-                        px: 1.5,
-                        mb: 0.25,
-                        borderRadius: 1.5,
+                        py: 0.85,
+                        px: 1.25,
+                        mb: 0.15,
+                        borderRadius: 1,
+                        color: 'text.secondary',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                          color: 'text.primary',
+                          '& .MuiListItemIcon-root': { color: 'text.primary' },
+                        },
                         '&.Mui-selected': {
-                          bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
-                          color: 'primary.main',
-                          boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,
-                          '& .MuiListItemIcon-root': { color: 'primary.main' },
+                          bgcolor: '#F1F5F9',
+                          color: 'text.primary',
+                          '& .MuiListItemIcon-root': { color: 'text.primary' },
                           '&:hover': {
-                            bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
+                            bgcolor: '#E2E8F0',
                           },
                         },
                       }}
                     >
-                      <ListItemIcon sx={{ minWidth: 32, color: active ? 'primary.main' : 'text.secondary' }}>
+                      <ListItemIcon
+                        sx={{
+                          minWidth: 32,
+                          color: 'inherit',
+                        }}
+                      >
                         {item.icon}
                       </ListItemIcon>
                       <ListItemText
                         primary={item.label}
                         slotProps={{
                           primary: {
+                            variant: 'body2',
                             sx: {
-                              fontSize: '0.8125rem',
-                              fontWeight: active ? 600 : 400,
+                              fontWeight: active ? 500 : 400,
+                              color: 'inherit',
                             },
                           },
                         }}

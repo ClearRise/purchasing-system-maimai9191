@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import dashboardService from '@/services/dashboardService';
 import settingsService from '@/services/settingsService';
+import lookupOptionService from '@/services/lookupOptionService';
 
 export const getDashboardSummary = async (_req: Request, res: Response) => {
   try {
@@ -10,7 +11,21 @@ export const getDashboardSummary = async (_req: Request, res: Response) => {
       dashboardService.getRiskCustomers(),
       dashboardService.getPriceAlerts(),
     ]);
-    res.json({ success: true, data: { summary, topProducts, riskCustomers, priceAlerts } });
+    res.json({
+      success: true,
+      data: { summary, topProducts, riskCustomers, priceAlerts },
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getProductProfitTrends = async (req: Request, res: Response) => {
+  try {
+    const startYearMonth = typeof req.query.startYearMonth === 'string' ? req.query.startYearMonth : undefined;
+    const endYearMonth = typeof req.query.endYearMonth === 'string' ? req.query.endYearMonth : undefined;
+    const data = await dashboardService.getProductProfitTrends(startYearMonth, endYearMonth);
+    res.json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -49,5 +64,26 @@ export const updateSystemSettings = async (req: Request, res: Response) => {
     res.json({ success: true, message: '設定を更新しました', data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const getLookupOptions = async (req: Request, res: Response) => {
+  try {
+    const kind = String(req.params.kind || '');
+    const data = await lookupOptionService.listByKind(kind, false);
+    res.json({ success: true, data: data.map((r) => r.value) });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
+  }
+};
+
+export const replaceLookupOptions = async (req: Request, res: Response) => {
+  try {
+    const kind = String(req.params.kind || '');
+    const values = Array.isArray(req.body?.values) ? req.body.values : [];
+    const rows = await lookupOptionService.replaceKind(kind, values);
+    res.json({ success: true, message: 'マスタを更新しました', data: rows.map((r) => r.value) });
+  } catch (error: any) {
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
   }
 };

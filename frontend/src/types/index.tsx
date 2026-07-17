@@ -111,6 +111,31 @@ export interface IQuotationLine {
   note?: string;
 }
 
+export interface IProductProfitPoint {
+  yearMonth: string;
+  avgPurchase: number | null;
+  avgSell: number | null;
+  unitProfit: number | null;
+  marginPct: number | null;
+}
+
+export interface IProductProfitProduct {
+  productId: number;
+  productName: string;
+  latestUnitProfit: number;
+  avgUnitProfit: number;
+  points: IProductProfitPoint[];
+}
+
+export interface IProductProfitTrends {
+  startYearMonth?: string | null;
+  endYearMonth?: string | null;
+  months: string[];
+  rankMargins: number[];
+  defaultProductId: number | null;
+  products: IProductProfitProduct[];
+}
+
 export interface IDashboardData {
   summary: {
     quotationDraft: number;
@@ -120,5 +145,13 @@ export interface IDashboardData {
   };
   topProducts: { productId: number; productName: string; avgMarginRate: number }[];
   riskCustomers: { customerId: number; customerName: string; rank: string; avgMarginRate: number; minRequired: number }[];
-  priceAlerts: { productName: string; targetYearMonth: string; changePct: number }[];
+  priceAlerts: {
+    productName: string;
+    supplierName?: string;
+    prevYearMonth?: string;
+    targetYearMonth: string;
+    priceBefore?: number;
+    priceAfter?: number;
+    changePct: number;
+  }[];
 }

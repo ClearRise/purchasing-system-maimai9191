@@ -11,28 +11,30 @@ import { IUserPaginationOptions } from '@/types';
 export const createUser = async (req: Request, res: Response) => {
   try {
     const userData = req.body;
-    
-    // Check if user already exists
-    const existingUser = await userService.findUserByEmail(userData.email);
-    if (existingUser) {
-      throw new CustomError('User with this email already exists', 400);
+
+    const existingEmail = await userService.findUserByEmail(userData.email);
+    if (existingEmail) {
+      throw new CustomError('このメールアドレスは既に登録されています', 400);
     }
 
-    // Hash password before storing
+    const existingUsername = await userService.findUserByUsername(userData.username);
+    if (existingUsername) {
+      throw new CustomError('このユーザー名は既に使用されています', 400);
+    }
+
     if (userData.password) {
       const salt = await bcrypt.genSalt(10);
       userData.password = await bcrypt.hash(userData.password, salt);
     }
 
     const user = await userService.createUser(userData);
-    
-    // Remove password from response
+
     const userResponse = user.toJSON();
     delete (userResponse as any).password;
 
     return res.status(201).json({
       success: true,
-      message: 'User created successfully',
+      message: 'ユーザーを登録しました',
       data: userResponse,
     });
   } catch (error: any) {
@@ -116,21 +118,50 @@ export const getUserById = async (req: Request, res: Response) => {
 export const updateUser = async (req: Request, res: Response) => {
   try {
     const userId = parseInt(String(req.params.id), 10);
-    const userData = req.body;
+    const actorId = (req as any).user?.id as number | undefined;
+    const userData = { ...req.body };
 
-    const user = await userService.updateUser(userId, userData);
-
-    if (!user) {
-      throw new CustomError('User not found', 404);
+    const current = await userService.findUserById(userId);
+    if (!current) {
+      throw new CustomError('ユーザーが見つかりません', 404);
     }
 
-    // Remove password from response
+    if (userData.isActive === false && actorId === userId) {
+      throw new CustomError('自分自身のアカウントは無効化できません', 400);
+    }
+
+    if (userData.email && userData.email !== current.email) {
+      const existingEmail = await userService.findUserByEmail(userData.email);
+      if (existingEmail && existingEmail.id !== userId) {
+        throw new CustomError('このメールアドレスは既に登録されています', 400);
+      }
+    }
+
+    if (userData.username && userData.username !== current.username) {
+      const existingUsername = await userService.findUserByUsername(userData.username);
+      if (existingUsername && existingUsername.id !== userId) {
+        throw new CustomError('このユーザー名は既に使用されています', 400);
+      }
+    }
+
+    if (userData.password) {
+      const salt = await bcrypt.genSalt(10);
+      userData.password = await bcrypt.hash(userData.password, salt);
+    } else {
+      delete userData.password;
+    }
+
+    const user = await userService.updateUser(userId, userData);
+    if (!user) {
+      throw new CustomError('ユーザーが見つかりません', 404);
+    }
+
     const userResponse = user.toJSON();
     delete (userResponse as any).password;
 
     return res.status(200).json({
       success: true,
-      message: 'User updated successfully',
+      message: 'ユーザーを更新しました',
       data: userResponse,
     });
   } catch (error: any) {
@@ -174,16 +205,21 @@ export const deactivateUser = async (req: Request, res: Response) => {
 export const deleteUser = async (req: Request, res: Response) => {
   try {
     const userId = parseInt(String(req.params.id), 10);
+    const actorId = (req as any).user?.id as number | undefined;
+
+    if (actorId && actorId === userId) {
+      throw new CustomError('自分自身のアカウントは削除できません', 400);
+    }
 
     const success = await userService.deleteUser(userId);
 
     if (!success) {
-      throw new CustomError('User not found', 404);
+      throw new CustomError('ユーザーが見つかりません', 404);
     }
 
     return res.status(200).json({
       success: true,
-      message: 'User deleted successfully',
+      message: 'ユーザーを削除しました',
     });
   } catch (error: any) {
     logger.error('Error deleting user:', error);

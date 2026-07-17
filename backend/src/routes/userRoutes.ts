@@ -1,9 +1,13 @@
 import { Router } from 'express';
 import * as userController from '@/controllers/userController';
 import { validate } from '@/middlewares/validate';
+import { adminOnly } from '@/middlewares/authorize';
 import { createUserSchema, idSchema, updateUserSchema, fetchUsersSchema } from '@/validators';
 
 const router = Router();
+
+/** All user-management endpoints are admin-only */
+router.use(adminOnly);
 
 /**
  * @route   GET /api/users/stats

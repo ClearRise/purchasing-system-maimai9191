@@ -35,7 +35,7 @@ const cornerHeaderSx = (left: number, minWidth: number, isLastFrozen: boolean) =
   minWidth,
   zIndex: 4,
   bgcolor: HEADER_BG,
-  fontWeight: 600,
+  fontWeight: 500,
   whiteSpace: 'nowrap' as const,
   borderRight: '1px solid',
   borderColor: 'divider',
@@ -50,7 +50,7 @@ const scrollHeaderSx = {
   top: 0,
   zIndex: 3,
   bgcolor: HEADER_BG,
-  fontWeight: 600,
+  fontWeight: 500,
   whiteSpace: 'nowrap' as const,
 };
 
@@ -110,7 +110,7 @@ const PriceMatrixTable: React.FC<PriceMatrixTableProps> = ({
             ))}
             {columns.map((col) => (
               <TableCell key={col.key} sx={{ ...scrollHeaderSx, minWidth: 108, textAlign: 'center' }}>
-                <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+                <Typography variant="caption" sx={{ fontWeight: 500, display: 'block' }}>
                   {col.label}
                 </Typography>
                 {col.subLabel && (
@@ -188,7 +188,7 @@ const PriceMatrixTable: React.FC<PriceMatrixTableProps> = ({
                 );
               })}
               {highlightMin && (
-                <TableCell sx={{ textAlign: 'center', fontWeight: 600, fontSize: '0.8125rem' }}>
+                <TableCell sx={{ textAlign: 'center', fontWeight: 500, fontSize: '0.8125rem' }}>
                   {row.minPrice != null ? `¥${row.minPrice.toLocaleString()}` : '-'}
                 </TableCell>
               )}

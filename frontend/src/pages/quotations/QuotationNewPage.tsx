@@ -51,7 +51,7 @@ const QuotationNewPage: React.FC = () => {
         note: form.note,
       });
       enqueueSnackbar('見積書を作成しました', { variant: 'success' });
-      navigate(`/quotations/${res.data.data.id}`);
+      navigate(`/quotations?id=${res.data.data.id}`);
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '作成に失敗しました', { variant: 'error' });
     } finally {

@@ -28,10 +28,15 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   },
 });
 
-/** Create missing tables from Sequelize models. Alter columns only in development. */
+/** Create missing tables from models, then apply SQL migrations (safe for real data). */
 export async function ensureSchema(): Promise<void> {
   await import('@/models');
+  // Dev: alter to match models. Prod: only create missing tables (no destructive alter).
   await sequelize.sync({ alter: NODE_ENV === 'development' });
+
+  const { runMigrations } = await import('@/config/migrate');
+  await runMigrations();
+
   logger.info('Database schema ready.');
 }
 

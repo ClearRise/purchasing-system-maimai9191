@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, Box, CircularProgress,
 } from '@mui/material';
-import DownloadIcon from '@mui/icons-material/Download';
+import DownloadOutlinedIcon from '@mui/icons-material/DownloadOutlined';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 
@@ -77,7 +77,7 @@ const QuotationPdfPreviewDialog: React.FC<QuotationPdfPreviewDialogProps> = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>閉じる</Button>
-        <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleDownload} disabled={!quotationId}>
+        <Button variant="contained" startIcon={<DownloadOutlinedIcon />} onClick={handleDownload} disabled={!quotationId}>
           PDFダウンロード
         </Button>
       </DialogActions>

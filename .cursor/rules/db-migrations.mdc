@@ -1,0 +1,27 @@
+---
+description: DB changes require safe SQL migrations for real production data
+alwaysApply: true
+---
+
+# Database schema updates
+
+When changing database structure (new tables, columns, types, indexes, constraints):
+
+1. **Always add a SQL updater** under `backend/sql/migrations/` (numbered, e.g. `003_description.sql`).
+2. Migrations must be **safe on real data**:
+   - Prefer `IF NOT EXISTS` / `IF EXISTS` / `ON CONFLICT DO NOTHING`
+   - Prefer `ALTER … USING` that preserves existing values
+   - Never drop columns/tables with data unless the user explicitly asks
+   - Avoid destructive rewrites (`DROP TABLE`, truncate, recreate) on deployed DBs
+3. Do **not** rely only on Sequelize `sync({ alter: true })` for production — that is for local/dev convenience.
+4. Keep models and migrations aligned: update Sequelize models **and** ship the SQL migration.
+5. Seed data (`backend/sql/seed.sql`) is for defaults only and must stay idempotent; schema changes belong in migrations, not seed.
+
+Example safe patterns:
+
+```sql
+CREATE TABLE IF NOT EXISTS ...
+ALTER TABLE ... ADD COLUMN IF NOT EXISTS ...
+-- ENUM → VARCHAR while keeping values
+ALTER TABLE products ALTER COLUMN unit TYPE VARCHAR(50) USING unit::text;
+```

@@ -1,40 +1,47 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Box, Paper, TextField, Button, Table, TableHead, TableRow, TableCell,
-  TableBody, CircularProgress, Typography, Divider,
-} from '@mui/material';
-import SaveIcon from '@mui/icons-material/Save';
+import { Box, CircularProgress, Tab, Tabs } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import { compressSealImage } from 'src/utils/compressSealImage';
+import CompanySettingsPanel from './settings/CompanySettingsPanel';
+import SystemUsersPanel from './settings/SystemUsersPanel';
+import ProductSettingsPanel from './settings/ProductSettingsPanel';
+import CustomerSettingsPanel from './settings/CustomerSettingsPanel';
+import OtherSettingsPanel from './settings/OtherSettingsPanel';
 
-const COMPANY_FIELDS = ['company_name', 'company_tel', 'company_fax', 'order_cutoff_time'] as const;
-const ALERT_FIELDS = ['price_increase_alert_pct', 'abnormal_value_alert_pct'] as const;
+type SettingsTab = 'company' | 'users' | 'product' | 'customer' | 'other';
 
-const SETTING_LABELS: Record<string, string> = {
-  company_name: '会社名',
-  company_tel: '電話番号',
-  company_fax: 'FAX',
-  order_cutoff_time: '発注締切時間',
-  price_increase_alert_pct: '価格上昇アラート (%)',
-  abnormal_value_alert_pct: '異常値アラート (%)',
-};
+const TAB_ITEMS: { value: SettingsTab; label: string }[] = [
+  { value: 'company', label: '会社' },
+  { value: 'users', label: 'システムユーザー' },
+  { value: 'product', label: '商品' },
+  { value: 'customer', label: '得意先' },
+  { value: 'other', label: 'その他' },
+];
 
 const SettingsPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
+  const [tab, setTab] = useState<SettingsTab>('company');
   const [margins, setMargins] = useState<any[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [units, setUnits] = useState<string[]>([]);
+  const [specs, setSpecs] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [savingLookups, setSavingLookups] = useState(false);
 
   useEffect(() => {
     Promise.all([
       api.get(endpoints.admin.rankMargins),
       api.get(endpoints.admin.settings),
-    ]).then(([mRes, sRes]) => {
+      api.get(endpoints.admin.lookupOptions('unit')),
+      api.get(endpoints.admin.lookupOptions('spec')),
+    ]).then(([mRes, sRes, unitRes, specRes]) => {
       setMargins(mRes.data.data);
       setSettings(sRes.data.data);
+      setUnits(unitRes.data.data || []);
+      setSpecs(specRes.data.data || []);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -61,6 +68,23 @@ const SettingsPage: React.FC = () => {
     }
   };
 
+  const saveLookup = async (kind: 'unit' | 'spec', values: string[]) => {
+    setSavingLookups(true);
+    try {
+      const res = await api.put(endpoints.admin.lookupOptions(kind), { values });
+      const next = res.data.data || [];
+      if (kind === 'unit') setUnits(next);
+      else setSpecs(next);
+      enqueueSnackbar(kind === 'unit' ? '単位マスタを保存しました' : '規格マスタを保存しました', {
+        variant: 'success',
+      });
+    } catch (err: any) {
+      enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
+    } finally {
+      setSavingLookups(false);
+    }
+  };
+
   const handleSealUpload = async (file: File | null) => {
     if (!file) return;
     try {
@@ -82,135 +106,69 @@ const SettingsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader title="システム設定" subtitle="ランク別粗利率・会社情報の管理" />
+      <PageHeader
+        title="システム設定"
+        subtitle="会社情報・ユーザー・商品マスタ・得意先設定の管理"
+      />
 
-      <Box
+      <Tabs
+        value={tab}
+        onChange={(_, value: SettingsTab) => setTab(value)}
+        variant="scrollable"
+        scrollButtons="auto"
         sx={{
-          display: 'flex',
-          flexDirection: { xs: 'column', md: 'row' },
-          gap: 2,
-          alignItems: 'stretch',
+          mb: 2,
+          borderBottom: 1,
+          borderColor: 'divider',
+          minHeight: 42,
+          '& .MuiTab-root': { minHeight: 42, py: 1 },
         }}
       >
-        <Paper sx={{ flex: { md: '1 1 42%' }, minWidth: 0 }}>
-          <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              ランク別粗利率
-            </Typography>
-            <Button variant="contained" size="small" startIcon={<SaveIcon />} onClick={saveMargins}>
-              保存
-            </Button>
-          </Box>
-          <Divider />
-          <Box sx={{ overflowX: 'auto' }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>ランク</TableCell>
-                  <TableCell>デフォルト粗利率 (%)</TableCell>
-                  <TableCell>最低粗利率 (%)</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {margins.map((m, i) => (
-                  <TableRow key={m.rank}>
-                    <TableCell sx={{ fontWeight: 500 }}>{m.rank}</TableCell>
-                    <TableCell>
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={m.defaultMarginRate}
-                        onChange={(e) => {
-                          const updated = [...margins];
-                          updated[i] = { ...m, defaultMarginRate: Number(e.target.value) };
-                          setMargins(updated);
-                        }}
-                        sx={{ width: 100 }}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <TextField
-                        type="number"
-                        size="small"
-                        value={m.minMarginRate}
-                        onChange={(e) => {
-                          const updated = [...margins];
-                          updated[i] = { ...m, minMarginRate: Number(e.target.value) };
-                          setMargins(updated);
-                        }}
-                        sx={{ width: 100 }}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Box>
-        </Paper>
+        {TAB_ITEMS.map((item) => (
+          <Tab key={item.value} value={item.value} label={item.label} />
+        ))}
+      </Tabs>
 
-        <Paper sx={{ flex: { md: '1 1 58%' }, minWidth: 0 }}>
-          <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-              会社情報・アラート
-            </Typography>
-            <Button variant="contained" size="small" startIcon={<SaveIcon />} onClick={saveSettings}>
-              保存
-            </Button>
-          </Box>
-          <Divider />
-          <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {COMPANY_FIELDS.map((key) => (
-              <TextField
-                key={key}
-                label={SETTING_LABELS[key]}
-                value={settings[key] || ''}
-                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-                fullWidth
-                size="small"
-              />
-            ))}
+      {tab === 'company' && (
+        <CompanySettingsPanel
+          settings={settings}
+          onChange={(key, value) => setSettings((prev) => ({ ...prev, [key]: value }))}
+          onSave={saveSettings}
+          onSealUpload={handleSealUpload}
+        />
+      )}
 
-            {ALERT_FIELDS.map((key) => (
-              <TextField
-                key={key}
-                label={SETTING_LABELS[key]}
-                type="number"
-                value={settings[key] || ''}
-                onChange={(e) => setSettings({ ...settings, [key]: e.target.value })}
-                fullWidth
-                size="small"
-              />
-            ))}
+      {tab === 'users' && <SystemUsersPanel />}
 
-            <Box>
-              <Typography variant="body2" sx={{ mb: 1, fontWeight: 500 }}>
-                見積書用会社印
-              </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                {settings.company_seal ? (
-                  <Box
-                    component="img"
-                    src={settings.company_seal}
-                    alt="会社印"
-                    sx={{ width: 72, height: 72, objectFit: 'contain', border: '1px solid', borderColor: 'divider' }}
-                  />
-                ) : (
-                  <Typography variant="body2" color="text.secondary">未設定</Typography>
-                )}
-                <Button variant="outlined" size="small" component="label">
-                  画像を選択
-                  <input
-                    type="file"
-                    hidden
-                    accept="image/png,image/jpeg,image/webp"
-                    onChange={(e) => handleSealUpload(e.target.files?.[0] || null)}
-                  />
-                </Button>
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
+      {tab === 'product' && (
+        <ProductSettingsPanel
+          units={units}
+          specs={specs}
+          saving={savingLookups}
+          onUnitsChange={setUnits}
+          onSpecsChange={setSpecs}
+          onSaveUnits={() => saveLookup('unit', units)}
+          onSaveSpecs={() => saveLookup('spec', specs)}
+        />
+      )}
+
+      {tab === 'customer' && (
+        <CustomerSettingsPanel
+          margins={margins}
+          onChange={(index, patch) => {
+            setMargins((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
+          }}
+          onSave={saveMargins}
+        />
+      )}
+
+      {tab === 'other' && (
+        <OtherSettingsPanel
+          settings={settings}
+          onChange={(key, value) => setSettings((prev) => ({ ...prev, [key]: value }))}
+          onSave={saveSettings}
+        />
+      )}
     </Box>
   );
 };

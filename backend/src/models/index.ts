@@ -12,6 +12,7 @@ import Quotation from './Quotation';
 import QuotationLine from './QuotationLine';
 import RankMarginSetting from './RankMarginSetting';
 import SystemSetting from './SystemSetting';
+import LookupOption from './LookupOption';
 
 // User associations
 Store.belongsTo(User, { foreignKey: 'salesUserId', as: 'salesUser' });
@@ -88,6 +89,7 @@ export {
   QuotationLine,
   RankMarginSetting,
   SystemSetting,
+  LookupOption,
 };
 
 export default {
@@ -105,4 +107,5 @@ export default {
   QuotationLine,
   RankMarginSetting,
   SystemSetting,
+  LookupOption,
 };

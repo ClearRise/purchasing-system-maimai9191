@@ -1,6 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import sequelize from '@/config/database';
-import { ProductUnit } from '@/config/constants';
 
 export interface IProductAttributes {
   id: number;
@@ -12,7 +11,7 @@ export interface IProductAttributes {
   spec?: string;
   specUnit?: string;
   contentAmount?: string;
-  unit: ProductUnit;
+  unit: string;
   categoryId?: number;
   categoryLabel?: string;
   shelfGroup?: string;
@@ -37,7 +36,7 @@ class Product extends Model<IProductAttributes, IProductCreation> implements IPr
   public spec?: string;
   public specUnit?: string;
   public contentAmount?: string;
-  public unit!: ProductUnit;
+  public unit!: string;
   public categoryId?: number;
   public categoryLabel?: string;
   public shelfGroup?: string;
@@ -66,7 +65,7 @@ Product.init(
     specUnit: { type: DataTypes.STRING(20), allowNull: true },
     contentAmount: { type: DataTypes.STRING(50), allowNull: true },
     unit: {
-      type: DataTypes.ENUM('PC', 'kg', 'case', 'hon', 'CS', 'tama'),
+      type: DataTypes.STRING(50),
       allowNull: false,
       defaultValue: 'PC',
     },

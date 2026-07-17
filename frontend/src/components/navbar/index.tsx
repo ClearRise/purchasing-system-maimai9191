@@ -1,8 +1,8 @@
 import React from 'react';
 import { AppBar, Toolbar, IconButton, Typography, Box } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
+import MenuOutlinedIcon from '@mui/icons-material/MenuOutlined';
 import UserAccountMenu from 'src/components/navbar/UserAccountMenu';
-import { COMPANY_NAME } from 'src/constants/config';
+import { COMPANY_NAME, LOGO_URL } from 'src/constants/config';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -23,9 +23,15 @@ const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => (
   >
     <Toolbar sx={{ minHeight: 48, px: 1.5, gap: 1 }}>
       <IconButton edge="start" onClick={onMenuClick} size="small" sx={{ color: 'text.secondary' }}>
-        <MenuIcon fontSize="small" />
+        <MenuOutlinedIcon fontSize="small" />
       </IconButton>
-      <Typography variant="subtitle2" sx={{ fontWeight: 700, color: 'primary.main', flex: 1 }}>
+      <Box
+        component="img"
+        src={LOGO_URL}
+        alt={COMPANY_NAME}
+        sx={{ height: 28, width: 'auto', maxWidth: 96, objectFit: 'contain', display: 'block' }}
+      />
+      <Typography variant="subtitle2" color="primary.main" sx={{ flex: 1 }} noWrap>
         {COMPANY_NAME}
       </Typography>
       <Box sx={{ flexShrink: 0 }}>

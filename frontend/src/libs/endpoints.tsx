@@ -9,6 +9,7 @@ const endpoints = {
     list: '/users',
     stats: '/users/stats',
     detail: (id: number) => `/users/${id}`,
+    deactivate: (id: number) => `/users/${id}/deactivate`,
   },
   masters: {
     lookup: '/masters/lookup',
@@ -38,11 +39,13 @@ const endpoints = {
   },
   dashboard: {
     summary: '/dashboard/summary',
+    productProfitTrends: '/dashboard/product-profit-trends',
   },
   admin: {
     rankMargins: '/admin/rank-margins',
     rankMargin: (rank: string) => `/admin/rank-margins/${rank}`,
     settings: '/admin/settings',
+    lookupOptions: (kind: 'unit' | 'spec') => `/admin/lookup-options/${kind}`,
   },
 };
 

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Grid,
   Paper,
   Typography,
   Box,
@@ -10,65 +9,149 @@ import {
   Chip,
   CircularProgress,
   alpha,
+  Tooltip,
+  IconButton,
 } from '@mui/material';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import HelpOutlineOutlinedIcon from '@mui/icons-material/HelpOutlineOutlined';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import WarningAmberOutlinedIcon from '@mui/icons-material/WarningAmberOutlined';
-import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import DraftsOutlinedIcon from '@mui/icons-material/DraftsOutlined';
 import PageHeader from 'src/components/common/PageHeader';
+import ProductProfitChart from 'src/components/dashboard/ProductProfitChart';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import type { IDashboardData } from 'src/types';
 
-const StatCard: React.FC<{
+const LabelHint: React.FC<{ title: string }> = ({ title }) => (
+  <Tooltip title={title} arrow placement="top">
+    <IconButton
+      size="small"
+      aria-label="説明"
+      sx={{
+        p: 0.15,
+        color: 'text.secondary',
+        '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+      }}
+    >
+      <HelpOutlineOutlinedIcon sx={{ fontSize: 14 }} />
+    </IconButton>
+  </Tooltip>
+);
+
+type StatItem = {
   label: string;
+  hint: string;
   value: number;
   icon: React.ReactNode;
   color: string;
-}> = ({ label, value, icon, color }) => (
-  <Paper sx={{ p: 2.5 }}>
-    <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-      <Box>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-          {label}
-        </Typography>
-        <Typography variant="h4" sx={{ fontWeight: 700, color: 'text.primary', lineHeight: 1.2 }}>
-          {value.toLocaleString()}
-        </Typography>
-      </Box>
+};
+
+/** Flat KPI strip — no cards, no separators. */
+const StatsStrip: React.FC<{ items: StatItem[] }> = ({ items }) => (
+  <Box
+    sx={{
+      flexShrink: 0,
+      display: 'grid',
+      gridTemplateColumns: {
+        xs: 'repeat(2, minmax(0, 1fr))',
+        sm: 'repeat(4, minmax(0, 1fr))',
+      },
+      gap: { xs: 1.5, sm: 2.5 },
+      px: { xs: 1.5, sm: 2 },
+      py: { xs: 1.25, sm: 1.5 },
+      borderRadius: 2,
+      bgcolor: (t) => alpha(t.palette.primary.main, 0.04),
+    }}
+  >
+    {items.map((item) => (
       <Box
+        key={item.label}
         sx={{
-          p: 1,
-          borderRadius: 1.5,
-          bgcolor: alpha(color, 0.1),
-          color,
+          minWidth: 0,
           display: 'flex',
+          alignItems: 'center',
+          gap: 1.25,
         }}
       >
-        {icon}
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            bgcolor: alpha(item.color, 0.12),
+            color: item.color,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          {item.icon}
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+            <Typography variant="caption" color="text.secondary" noWrap>
+              {item.label}
+            </Typography>
+            <LabelHint title={item.hint} />
+          </Box>
+          <Typography
+            variant="h2"
+            component="p"
+            sx={{
+              mt: 0.15,
+              fontWeight: 600,
+              fontSize: '1.5rem',
+              lineHeight: 1.15,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {item.value.toLocaleString()}
+          </Typography>
+        </Box>
       </Box>
-    </Box>
-  </Paper>
+    ))}
+  </Box>
 );
 
 const SectionCard: React.FC<{
   title: string;
+  hint: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
-}> = ({ title, icon, children }) => (
-  <Paper sx={{ height: '100%' }}>
-    <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-      <Typography variant="subtitle1" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+  bodySx?: object;
+}> = ({ title, hint, icon, children, bodySx }) => (
+  <Paper sx={{ height: '100%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <Box
+      sx={{
+        px: 1.5,
+        py: 1,
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        flexShrink: 0,
+      }}
+    >
+      <Typography
+        variant="subtitle2"
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
         {icon}
         {title}
+        <LabelHint title={hint} />
       </Typography>
     </Box>
-    <Box sx={{ p: 1 }}>{children}</Box>
+    <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', ...bodySx }}>{children}</Box>
   </Paper>
 );
 
 const EmptyState: React.FC<{ message: string }> = ({ message }) => (
-  <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 3, textAlign: 'center' }}>
+  <Typography variant="caption" color="text.secondary" sx={{ px: 1.5, py: 2, textAlign: 'center', display: 'block' }}>
     {message}
   </Typography>
 );
@@ -85,7 +168,7 @@ const DashboardPage: React.FC = () => {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', height: 320, alignItems: 'center', justifyContent: 'center' }}>
+      <Box sx={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress size={32} />
       </Box>
     );
@@ -94,137 +177,205 @@ const DashboardPage: React.FC = () => {
   const s = data?.summary;
 
   return (
-    <Box>
-      <PageHeader title="ダッシュボード" subtitle="仕入・見積の概要" />
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <PageHeader title="ダッシュボード" subtitle="仕入・見積の概要" dense />
 
-      <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <StatCard
-            label="商品数"
-            value={s?.productCount || 0}
-            icon={<Inventory2OutlinedIcon fontSize="small" />}
-            color="#166534"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <StatCard
-            label="得意先数"
-            value={s?.customerCount || 0}
-            icon={<TrendingUpIcon fontSize="small" />}
-            color="#2563EB"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <StatCard
-            label="下書き見積"
-            value={s?.quotationDraft || 0}
-            icon={<DescriptionOutlinedIcon fontSize="small" />}
-            color="#D97706"
-          />
-        </Grid>
-        <Grid size={{ xs: 12, sm: 6, lg: 3 }}>
-          <StatCard
-            label="送信済見積"
-            value={s?.quotationSent || 0}
-            icon={<DescriptionOutlinedIcon fontSize="small" />}
-            color="#16A34A"
-          />
-        </Grid>
-      </Grid>
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 1.25,
+          overflow: { xs: 'auto', md: 'hidden' },
+        }}
+      >
+        <StatsStrip
+          items={[
+            {
+              label: '商品数',
+              hint: 'いま使える状態で登録されている商品の数です。',
+              value: s?.productCount || 0,
+              icon: <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />,
+              color: '#166534',
+            },
+            {
+              label: '得意先数',
+              hint: 'いま取引可能な状態で登録されている得意先の数です。',
+              value: s?.customerCount || 0,
+              icon: <PeopleAltOutlinedIcon sx={{ fontSize: 18 }} />,
+              color: '#2563EB',
+            },
+            {
+              label: '下書き見積',
+              hint: 'まだお客様へ送っていない見積書の数です。',
+              value: s?.quotationDraft || 0,
+              icon: <DraftsOutlinedIcon sx={{ fontSize: 18 }} />,
+              color: '#D97706',
+            },
+            {
+              label: '送信済見積',
+              hint: 'すでに送信済みにした見積書の数です。',
+              value: s?.quotationSent || 0,
+              icon: <SendOutlinedIcon sx={{ fontSize: 18 }} />,
+              color: '#16A34A',
+            },
+          ]}
+        />
 
-      <Grid container spacing={2}>
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <SectionCard title="利益率 TOP 商品">
-            {(data?.topProducts || []).length > 0 ? (
-              <List dense disablePadding>
-                {(data?.topProducts || []).map((p, i) => (
-                  <ListItem
-                    key={p.productId}
-                    divider={i < (data?.topProducts?.length || 0) - 1}
-                    sx={{ px: 2, py: 1.25 }}
-                  >
-                    <ListItemText
-                      primary={`${i + 1}. ${p.productName}`}
-                      secondary={`平均粗利率 ${p.avgMarginRate}%`}
-                      slotProps={{
-                        primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } },
-                        secondary: { sx: { fontSize: '0.75rem' } },
-                      }}
-                    />
-                    <Chip label={`${p.avgMarginRate}%`} color="success" size="small" variant="outlined" />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <EmptyState message="データがありません" />
-            )}
-          </SectionCard>
-        </Grid>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            display: 'grid',
+            gap: 1.25,
+            gridTemplateColumns: { xs: '1fr', lg: '1fr 1fr' },
+            gridTemplateRows: {
+              xs: 'auto',
+              md: 'minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.75fr)',
+            },
+            gridTemplateAreas: {
+              xs: `
+                "chart"
+                "top"
+                "risk"
+                "alert"
+              `,
+              lg: `
+                "chart chart"
+                "top risk"
+                "alert alert"
+              `,
+            },
+          }}
+        >
+          <Box sx={{ gridArea: 'chart', minHeight: { xs: 280, md: 0 } }}>
+            <SectionCard
+              title="商品別 月次利益推移"
+              hint="開始月〜終了月を選ぶと、その期間の月が横軸に並びます。各月は全発注先の平均仕入と、全ランク標準粗利の平均売価から1単位あたりの平均利益を出しています。最初は直近利益が最も高い商品を表示します。"
+              bodySx={{ display: 'flex', flexDirection: 'column' }}
+            >
+              <ProductProfitChart compact />
+            </SectionCard>
+          </Box>
 
-        <Grid size={{ xs: 12, lg: 6 }}>
-          <SectionCard
-            title="赤字リスク顧客"
-            icon={<WarningAmberOutlinedIcon fontSize="small" color="error" />}
-          >
-            {(data?.riskCustomers || []).length > 0 ? (
-              <List dense disablePadding>
-                {(data?.riskCustomers || []).map((c, i) => (
-                  <ListItem
-                    key={c.customerId}
-                    divider={i < (data?.riskCustomers?.length || 0) - 1}
-                    sx={{ px: 2, py: 1.25 }}
-                  >
-                    <ListItemText
-                      primary={c.customerName}
-                      secondary={`ランク ${c.rank} · 下限 ${c.minRequired}%`}
-                      slotProps={{
-                        primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } },
-                        secondary: { sx: { fontSize: '0.75rem' } },
-                      }}
-                    />
-                    <Chip label={`${c.avgMarginRate}%`} color="error" size="small" variant="outlined" />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <EmptyState message="リスク顧客はありません" />
-            )}
-          </SectionCard>
-        </Grid>
+          <Box sx={{ gridArea: 'top', minHeight: { xs: 160, md: 0 } }}>
+            <SectionCard
+              title="利益率 TOP 商品"
+              hint="見積で利益が取れている商品を、平均の粗利率が高い順に並べています。"
+            >
+              {(data?.topProducts || []).length > 0 ? (
+                <List dense disablePadding>
+                  {(data?.topProducts || []).slice(0, 5).map((p, i) => (
+                    <ListItem
+                      key={p.productId}
+                      divider={i < Math.min(5, data?.topProducts?.length || 0) - 1}
+                      sx={{ px: 1.5, py: 0.75 }}
+                    >
+                      <ListItemText
+                        primary={`${i + 1}. ${p.productName}`}
+                        secondary={`平均粗利率 ${p.avgMarginRate}%`}
+                        slotProps={{
+                          primary: { sx: { fontSize: '0.8125rem', fontWeight: 500 } },
+                          secondary: { sx: { fontSize: '0.75rem' } },
+                        }}
+                      />
+                      <Chip label={`${p.avgMarginRate}%`} color="success" size="small" variant="outlined" />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <EmptyState message="データがありません" />
+              )}
+            </SectionCard>
+          </Box>
 
-        <Grid size={{ xs: 12 }}>
-          <SectionCard title="仕入単価急騰アラート">
-            {(data?.priceAlerts || []).length > 0 ? (
-              <List dense disablePadding>
-                {(data?.priceAlerts || []).map((a, i) => (
-                  <ListItem
-                    key={i}
-                    divider={i < (data?.priceAlerts?.length || 0) - 1}
-                    sx={{ px: 2, py: 1.25 }}
-                  >
-                    <ListItemText
-                      primary={a.productName}
-                      secondary={`${a.targetYearMonth} · 変動率 ${a.changePct > 0 ? '+' : ''}${a.changePct}%`}
-                      slotProps={{
-                        primary: { sx: { fontSize: '0.875rem', fontWeight: 500 } },
-                        secondary: { sx: { fontSize: '0.75rem' } },
-                      }}
-                    />
-                    <Chip
-                      label={`${a.changePct > 0 ? '+' : ''}${a.changePct}%`}
-                      color={a.changePct > 0 ? 'warning' : 'info'}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            ) : (
-              <EmptyState message="アラートはありません" />
-            )}
-          </SectionCard>
-        </Grid>
-      </Grid>
+          <Box sx={{ gridArea: 'risk', minHeight: { xs: 160, md: 0 } }}>
+            <SectionCard
+              title="粗利下限割れ顧客"
+              hint="いちばん新しい見積で、ランクごとの最低粗利率を下回っている得意先です。すぐ赤字というわけではなく、値付けの見直しが必要な可能性があります。"
+              icon={<WarningAmberOutlinedIcon sx={{ fontSize: 16 }} color="error" />}
+            >
+              {(data?.riskCustomers || []).length > 0 ? (
+                <List dense disablePadding>
+                  {(data?.riskCustomers || []).slice(0, 5).map((c, i) => (
+                    <ListItem
+                      key={c.customerId}
+                      divider={i < Math.min(5, data?.riskCustomers?.length || 0) - 1}
+                      sx={{ px: 1.5, py: 0.75 }}
+                    >
+                      <ListItemText
+                        primary={c.customerName}
+                        secondary={`ランク ${c.rank} · 下限 ${c.minRequired}%`}
+                        slotProps={{
+                          primary: { sx: { fontSize: '0.8125rem', fontWeight: 500 } },
+                          secondary: { sx: { fontSize: '0.75rem' } },
+                        }}
+                      />
+                      <Chip label={`${c.avgMarginRate}%`} color="error" size="small" variant="outlined" />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <EmptyState message="下限割れの得意先はありません" />
+              )}
+            </SectionCard>
+          </Box>
+
+          <Box sx={{ gridArea: 'alert', minHeight: { xs: 140, md: 0 } }}>
+            <SectionCard
+              title="仕入単価急騰アラート"
+              hint="同じ商品・発注先で、前の月より仕入単価が大きく上がったものを表示します。判定の目安はシステム設定の「価格上昇アラート (%)」です。"
+            >
+              {(data?.priceAlerts || []).length > 0 ? (
+                <List dense disablePadding>
+                  {(data?.priceAlerts || []).slice(0, 4).map((a, i) => (
+                    <ListItem
+                      key={`${a.productName}-${a.supplierName}-${a.targetYearMonth}-${i}`}
+                      divider={i < Math.min(4, data?.priceAlerts?.length || 0) - 1}
+                      sx={{ px: 1.5, py: 0.65 }}
+                    >
+                      <ListItemText
+                        primary={a.productName}
+                        secondary={[
+                          a.supplierName,
+                          a.prevYearMonth && a.targetYearMonth
+                            ? `${a.prevYearMonth} → ${a.targetYearMonth}`
+                            : a.targetYearMonth,
+                          a.priceBefore != null && a.priceAfter != null
+                            ? `¥${Number(a.priceBefore).toLocaleString()} → ¥${Number(a.priceAfter).toLocaleString()}`
+                            : null,
+                        ].filter(Boolean).join(' · ')}
+                        slotProps={{
+                          primary: { sx: { fontSize: '0.8125rem', fontWeight: 500 } },
+                          secondary: { sx: { fontSize: '0.75rem' } },
+                        }}
+                      />
+                      <Chip
+                        label={`+${a.changePct}%`}
+                        color="warning"
+                        size="small"
+                        variant="outlined"
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              ) : (
+                <EmptyState message="アラートはありません" />
+              )}
+            </SectionCard>
+          </Box>
+        </Box>
+      </Box>
     </Box>
   );
 };

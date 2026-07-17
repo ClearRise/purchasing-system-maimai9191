@@ -4,7 +4,7 @@
   --color-surface: #ffffff;
   --color-surface-muted: #f8fafc;
   --color-border: #e2e8f0;
-  --color-text: #0f172a;
+  --color-text: #1e293b;
   --color-text-muted: #64748b;
   --color-accent: #166534;
   --color-accent-light: #f0fdf4;
@@ -20,9 +20,15 @@ html {
 
 body {
   margin: 0;
+  font-family: "Noto Sans JP", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.6;
   color: var(--color-text);
   background-color: var(--color-surface-muted);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 ::selection {

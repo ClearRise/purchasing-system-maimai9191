@@ -34,23 +34,26 @@ export async function isSeeded(): Promise<boolean> {
   return ((rows as { count: number }[])[0]?.count ?? 0) > 0;
 }
 
+/**
+ * Idempotent seed:
+ * - Always applies seed.sql (ON CONFLICT / NOT EXISTS)
+ * - Creates admin when missing (or always with force)
+ */
 export async function seedDatabase(force = false): Promise<void> {
-  if (!force && (await isSeeded())) {
-    logger.info('Seed skipped (data already exists). Use npm run seed -- --force to re-run.');
-    return;
+  const hasUsers = await isSeeded();
+
+  if (!hasUsers || force) {
+    const password = await bcrypt.hash('Admin123!', 10);
+    await sequelize.query(readSql('seed-admin.sql'), {
+      replacements: {
+        email: 'admin@kaniwaseika.com',
+        username: 'admin',
+        password,
+        firstName: '管理者',
+        lastName: 'システム',
+      },
+    });
   }
-
-  const password = await bcrypt.hash('Admin123!', 10);
-
-  await sequelize.query(readSql('seed-admin.sql'), {
-    replacements: {
-      email: 'admin@kaniwaseika.com',
-      username: 'admin',
-      password,
-      firstName: '管理者',
-      lastName: 'システム',
-    },
-  });
 
   await sequelize.query(readSql('seed.sql'));
   logger.info('Database seed completed.');

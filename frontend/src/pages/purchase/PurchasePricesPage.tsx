@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Box, Paper, Button, TextField, MenuItem, Typography, Alert,
 } from '@mui/material';
-import SaveIcon from '@mui/icons-material/Save';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
 import PriceMatrixTable from 'src/components/purchase/PriceMatrixTable';
@@ -109,7 +109,8 @@ const PurchasePricesPage: React.FC = () => {
         action={canManagePrices && (
           <Button
             variant="contained"
-            startIcon={<SaveIcon />}
+            size="small"
+            startIcon={<SaveOutlinedIcon />}
             onClick={handleSave}
             disabled={saving || !editedCount}
           >

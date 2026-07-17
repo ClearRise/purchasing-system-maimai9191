@@ -8,6 +8,8 @@
     "start": "node dist/index.js",
     "seed": "node dist/scripts/seed.js",
     "seed:dev": "ts-node -r tsconfig-paths/register src/scripts/seed.ts",
+    "migrate": "node dist/scripts/migrate.js",
+    "migrate:dev": "ts-node -r tsconfig-paths/register src/scripts/migrate.ts",
     "test": "jest",
     "test:watch": "jest --watch"
   },
