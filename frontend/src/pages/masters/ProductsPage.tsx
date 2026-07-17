@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Box, Paper, Button, TextField, MenuItem, CircularProgress, Stack, IconButton,
+  Box, Paper, Button, TextField, MenuItem, CircularProgress, Stack, IconButton, Typography, InputAdornment,
 } from '@mui/material';
 import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
+import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
 import MasterFormPanel from 'src/components/common/MasterFormPanel';
@@ -19,7 +20,6 @@ import { getSelectedRowIds } from 'src/utils/gridSelection';
 import type { IProduct, IStore } from 'src/types';
 
 type ProductForm = {
-  storeId: string;
   name: string;
   spec: string;
   unit: string;
@@ -28,7 +28,6 @@ type ProductForm = {
 };
 
 const emptyForm = (defaultUnit = 'PC'): ProductForm => ({
-  storeId: '',
   name: '',
   spec: '',
   unit: defaultUnit,
@@ -42,7 +41,10 @@ const ProductsPage: React.FC = () => {
   const { units, specs } = useProductLookups();
   const [rows, setRows] = useState<IProduct[]>([]);
   const [stores, setStores] = useState<IStore[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [storeId, setStoreId] = useState('');
+  const [storeSearch, setStoreSearch] = useState('');
+  const [loadingStores, setLoadingStores] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ProductForm>(() => emptyForm());
@@ -55,22 +57,70 @@ const ProductsPage: React.FC = () => {
   );
   const mode = editId != null ? 'edit' : 'create';
   const defaultUnit = units[0] || 'PC';
+  const selectedStore = stores.find((s) => String(s.id) === storeId);
 
-  const fetchData = useCallback(async () => {
+  const filteredStores = useMemo(() => {
+    const q = storeSearch.trim().toLowerCase();
+    if (!q) return stores;
+    return stores.filter((s) => {
+      const hay = [s.name, s.groupName, s.location].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [stores, storeSearch]);
+
+  const fetchStores = useCallback(async () => {
+    setLoadingStores(true);
+    try {
+      const res = await api.get(endpoints.masters.lookup);
+      const loaded: IStore[] = res.data.data.stores || [];
+      setStores(loaded);
+      setStoreId((prev) => {
+        if (prev && loaded.some((s) => String(s.id) === prev)) return prev;
+        return loaded.length ? String(loaded[0].id) : '';
+      });
+    } catch {
+      enqueueSnackbar('店舗の取得に失敗しました', { variant: 'error' });
+    } finally {
+      setLoadingStores(false);
+    }
+  }, [enqueueSnackbar]);
+
+  const fetchProducts = useCallback(async (sid: string) => {
+    if (!sid) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
-      const [productsRes, lookupRes] = await Promise.all([
-        api.get(endpoints.masters.products, { params: { limit: 500 } }),
-        api.get(endpoints.masters.lookup),
-      ]);
-      setRows(productsRes.data.data.data);
-      setStores(lookupRes.data.data.stores);
+      const res = await api.get(endpoints.masters.products, {
+        params: { limit: 500, storeId: Number(sid) },
+      });
+      setRows(res.data.data.data || []);
+    } catch {
+      enqueueSnackbar('商品の取得に失敗しました', { variant: 'error' });
+      setRows([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [enqueueSnackbar]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchStores();
+  }, [fetchStores]);
+
+  useEffect(() => {
+    setSelection({ type: 'include', ids: new Set() });
+    setPanelOpen(false);
+    setEditId(null);
+    setForm(emptyForm(units[0] || 'PC'));
+    fetchProducts(storeId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId, fetchProducts]);
+
+  const selectStore = (id: number) => {
+    setStoreId(String(id));
+  };
 
   const closePanel = () => {
     setPanelOpen(false);
@@ -79,9 +129,12 @@ const ProductsPage: React.FC = () => {
   };
 
   const openCreate = () => {
+    if (!storeId) {
+      enqueueSnackbar('先に店舗を選択してください', { variant: 'warning' });
+      return;
+    }
     setEditId(null);
     const base = emptyForm(defaultUnit);
-    if (stores.length) base.storeId = String(stores[0].id);
     if (specs.length) base.spec = specs[0];
     setForm(base);
     setPanelOpen(true);
@@ -90,7 +143,6 @@ const ProductsPage: React.FC = () => {
   const openEdit = (row: IProduct) => {
     setEditId(row.id);
     setForm({
-      storeId: String(row.storeId),
       name: row.name,
       spec: row.spec || '',
       unit: row.unit,
@@ -101,14 +153,18 @@ const ProductsPage: React.FC = () => {
   };
 
   const handleSave = async () => {
-    if (!form.storeId || !form.name.trim()) {
-      enqueueSnackbar('店舗と品名は必須です', { variant: 'warning' });
+    if (!storeId) {
+      enqueueSnackbar('先に店舗を選択してください', { variant: 'warning' });
+      return;
+    }
+    if (!form.name.trim()) {
+      enqueueSnackbar('品名は必須です', { variant: 'warning' });
       return;
     }
 
     setSaving(true);
     try {
-      const payload = { ...form, storeId: Number(form.storeId) };
+      const payload = { ...form, storeId: Number(storeId) };
       if (editId) {
         await api.put(endpoints.masters.product(editId), payload);
         enqueueSnackbar('商品を更新しました', { variant: 'success' });
@@ -117,11 +173,10 @@ const ProductsPage: React.FC = () => {
         await api.post(endpoints.masters.products, payload);
         enqueueSnackbar('商品を登録しました', { variant: 'success' });
         const next = emptyForm(defaultUnit);
-        if (stores.length) next.storeId = form.storeId || String(stores[0].id);
         if (specs.length) next.spec = form.spec || specs[0];
         setForm(next);
       }
-      fetchData();
+      fetchProducts(storeId);
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
     } finally {
@@ -136,7 +191,7 @@ const ProductsPage: React.FC = () => {
       await Promise.all(selectedIds.map((id) => api.delete(endpoints.masters.product(id))));
       enqueueSnackbar(`${selectedIds.length}件を削除しました`, { variant: 'success' });
       setSelection({ type: 'include', ids: new Set() });
-      fetchData();
+      fetchProducts(storeId);
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '削除に失敗しました', { variant: 'error' });
     }
@@ -149,7 +204,7 @@ const ProductsPage: React.FC = () => {
       enqueueSnackbar('商品を削除しました', { variant: 'success' });
       setSelection({ type: 'include', ids: new Set() });
       if (editId === id) closePanel();
-      fetchData();
+      fetchProducts(storeId);
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '削除に失敗しました', { variant: 'error' });
     }
@@ -159,13 +214,7 @@ const ProductsPage: React.FC = () => {
     { field: 'name', headerName: '品名', flex: 1, minWidth: 150 },
     { field: 'spec', headerName: '規格', width: 100 },
     { field: 'unit', headerName: '単位', width: 70 },
-    { field: 'categoryLabel', headerName: 'カテゴリ', width: 100 },
-    {
-      field: 'store',
-      headerName: '店舗',
-      width: 120,
-      valueGetter: (_v, row) => row.store?.name || '',
-    },
+    { field: 'categoryLabel', headerName: 'カテゴリ', width: 120 },
     { field: 'note', headerName: '備考', flex: 1, minWidth: 120 },
     ...(canManageMasters
       ? [{
@@ -189,7 +238,7 @@ const ProductsPage: React.FC = () => {
           ),
         } as GridColDef]
       : []),
-  ], [canManageMasters, editId]);
+  ], [canManageMasters, editId, storeId]);
 
   const unitOptions = form.unit && !units.includes(form.unit) ? [form.unit, ...units] : units;
   const specOptions = form.spec && !specs.includes(form.spec) ? [form.spec, ...specs] : specs;
@@ -198,7 +247,7 @@ const ProductsPage: React.FC = () => {
     <Box sx={pageTableRootSx}>
       <PageHeader
         title="商品マスタ"
-        subtitle="店舗別商品の管理"
+        subtitle="店舗を選んで、その店舗の商品を管理します"
         action={canManageMasters && (
           <>
             <Button
@@ -211,7 +260,13 @@ const ProductsPage: React.FC = () => {
             >
               一括削除{selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}
             </Button>
-            <Button variant="contained" size="small" startIcon={<AddOutlinedIcon />} onClick={openCreate}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<AddOutlinedIcon />}
+              onClick={openCreate}
+              disabled={!storeId}
+            >
               新規登録
             </Button>
           </>
@@ -227,102 +282,223 @@ const ProductsPage: React.FC = () => {
           gap: 1.5,
         }}
       >
+        {/* Store list */}
         <Paper
           sx={{
-            ...tableFlexPaperSx,
-            display: { xs: panelOpen ? 'none' : 'flex', md: 'flex' },
+            width: { xs: '100%', md: 260 },
+            flexShrink: 0,
+            display: 'flex',
             flexDirection: 'column',
+            minHeight: { xs: 220, md: 0 },
+            overflow: 'hidden',
           }}
         >
-          {loading ? (
-            <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-              <CircularProgress size={32} />
+          <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              店舗一覧
+            </Typography>
+            <TextField
+              size="small"
+              fullWidth
+              placeholder="店舗を検索"
+              value={storeSearch}
+              onChange={(e) => setStoreSearch(e.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchOutlinedIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Box>
+
+          {loadingStores ? (
+            <Box sx={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : filteredStores.length === 0 ? (
+            <Box sx={{ p: 2.5, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                {stores.length ? '該当する店舗がありません' : '店舗がありません'}
+              </Typography>
             </Box>
           ) : (
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              checkboxSelection={canManageMasters}
-              rowSelectionModel={selection}
-              onRowSelectionModelChange={setSelection}
-              pageSizeOptions={[20, 50, 100]}
-              initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-              disableRowSelectionOnClick
-              onRowDoubleClick={(params) => canManageMasters && openEdit(params.row)}
-              sx={{ ...dataGridSx }}
-            />
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              {filteredStores.map((store) => {
+                const active = String(store.id) === storeId;
+                return (
+                  <Box
+                    key={store.id}
+                    onClick={() => selectStore(store.id)}
+                    sx={{
+                      px: 1.5,
+                      py: 1.1,
+                      cursor: 'pointer',
+                      bgcolor: active ? '#F1F5F9' : 'transparent',
+                      color: active ? 'text.primary' : 'text.secondary',
+                      '&:hover': {
+                        bgcolor: active ? '#E2E8F0' : 'action.hover',
+                        color: 'text.primary',
+                      },
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      noWrap
+                      sx={{ fontWeight: active ? 500 : 400, color: 'inherit' }}
+                    >
+                      {store.name}
+                    </Typography>
+                    {(store.groupName || store.location) && (
+                      <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                        {[store.groupName, store.location].filter(Boolean).join(' · ')}
+                      </Typography>
+                    )}
+                  </Box>
+                );
+              })}
+            </Box>
           )}
         </Paper>
 
-        <MasterFormPanel
-          open={panelOpen}
-          mode={mode}
-          form={form}
-          saving={saving}
-          onClose={closePanel}
-          onSave={handleSave}
-          onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
-          renderFields={(f) => (
-            <Stack spacing={1.5}>
-              <TextField
-                select
-                label="店舗"
-                value={f.storeId}
-                onChange={(e) => setForm((prev) => ({ ...prev, storeId: e.target.value }))}
-                required
-                fullWidth
-                size="small"
-              >
-                {stores.map((s) => <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>)}
-              </TextField>
-              <TextField
-                label="品名"
-                value={f.name}
-                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
-                required
-                fullWidth
-                size="small"
+        {/* Products + form */}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 1.5,
+          }}
+        >
+          <Paper
+            sx={{
+              ...tableFlexPaperSx,
+              display: { xs: panelOpen ? 'none' : 'flex', md: 'flex' },
+              flexDirection: 'column',
+            }}
+          >
+            <Box
+              sx={{
+                px: 1.5,
+                py: 1,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                minHeight: 44,
+              }}
+            >
+              <Typography variant="subtitle2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                {selectedStore ? `${selectedStore.name} の商品` : '商品一覧'}
+              </Typography>
+              {selectedStore && (
+                <Typography variant="caption" color="text.secondary">
+                  {loading ? '読込中…' : `${rows.length}件`}
+                </Typography>
+              )}
+            </Box>
+
+            {!storeId ? (
+              <Box sx={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center', p: 3 }}>
+                <Typography color="text.secondary">
+                  左のリストから店舗を選択してください
+                </Typography>
+              </Box>
+            ) : loading ? (
+              <Box sx={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress size={32} />
+              </Box>
+            ) : (
+              <DataGrid
+                rows={rows}
+                columns={columns}
+                checkboxSelection={canManageMasters}
+                rowSelectionModel={selection}
+                onRowSelectionModelChange={setSelection}
+                pageSizeOptions={[20, 50, 100]}
+                initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
+                disableRowSelectionOnClick
+                onRowDoubleClick={(params) => canManageMasters && openEdit(params.row)}
+                sx={{ ...dataGridSx, border: 0 }}
+                localeText={{ noRowsLabel: 'この店舗に商品がありません' }}
               />
-              <TextField
-                select
-                label="規格"
-                value={f.spec}
-                onChange={(e) => setForm((prev) => ({ ...prev, spec: e.target.value }))}
-                fullWidth
-                size="small"
-                disabled={!specOptions.length}
-              >
-                {specOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
-              </TextField>
-              <TextField
-                select
-                label="単位"
-                value={f.unit}
-                onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
-                fullWidth
-                size="small"
-              >
-                {unitOptions.map((u) => <MenuItem key={u} value={u}>{u}</MenuItem>)}
-              </TextField>
-              <TextField
-                label="カテゴリ"
-                value={f.categoryLabel}
-                onChange={(e) => setForm((prev) => ({ ...prev, categoryLabel: e.target.value }))}
-                fullWidth
-                size="small"
-              />
-              <TextField
-                label="備考"
-                value={f.note}
-                onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
-                multiline
-                rows={2}
-                fullWidth
-                size="small"
-              />
-            </Stack>
-          )}
-        />
+            )}
+          </Paper>
+
+          <MasterFormPanel
+            open={panelOpen}
+            mode={mode}
+            form={form}
+            saving={saving}
+            onClose={closePanel}
+            onSave={handleSave}
+            onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
+            renderFields={(f) => (
+              <Stack spacing={1.5}>
+                <TextField
+                  label="店舗"
+                  value={selectedStore?.name || ''}
+                  fullWidth
+                  size="small"
+                  disabled
+                />
+                <TextField
+                  label="品名"
+                  value={f.name}
+                  onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+                  required
+                  fullWidth
+                  size="small"
+                  autoFocus
+                />
+                <TextField
+                  select
+                  label="規格"
+                  value={f.spec}
+                  onChange={(e) => setForm((prev) => ({ ...prev, spec: e.target.value }))}
+                  fullWidth
+                  size="small"
+                  disabled={!specOptions.length}
+                >
+                  {specOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
+                </TextField>
+                <TextField
+                  select
+                  label="単位"
+                  value={f.unit}
+                  onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
+                  fullWidth
+                  size="small"
+                >
+                  {unitOptions.map((u) => <MenuItem key={u} value={u}>{u}</MenuItem>)}
+                </TextField>
+                <TextField
+                  label="カテゴリ"
+                  value={f.categoryLabel}
+                  onChange={(e) => setForm((prev) => ({ ...prev, categoryLabel: e.target.value }))}
+                  fullWidth
+                  size="small"
+                />
+                <TextField
+                  label="備考"
+                  value={f.note}
+                  onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
+                  multiline
+                  rows={2}
+                  fullWidth
+                  size="small"
+                />
+              </Stack>
+            )}
+          />
+        </Box>
       </Box>
     </Box>
   );
