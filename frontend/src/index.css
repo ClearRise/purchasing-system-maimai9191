@@ -35,3 +35,22 @@ body {
   background-color: #bbf7d0;
   color: #14532d;
 }
+
+/* Horizontally centered toast stack */
+.minimal-snackbar-container.minimal-snackbar-top-center {
+  left: 50% !important;
+  right: auto !important;
+  transform: translateX(-50%);
+  align-items: center;
+  width: auto;
+  max-width: calc(100vw - 24px);
+  top: 20px !important;
+}
+
+.minimal-snackbar-container .notistack-MuiContent,
+.minimal-snackbar-container [class*='SnackbarContent-root'] {
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+}

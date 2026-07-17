@@ -8,7 +8,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
-import MasterFormDrawer from 'src/components/common/MasterFormDrawer';
+import MasterFormPanel from 'src/components/common/MasterFormPanel';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import { usePermissions } from 'src/hooks/usePermissions';
@@ -43,9 +43,9 @@ const ProductsPage: React.FC = () => {
   const [rows, setRows] = useState<IProduct[]>([]);
   const [stores, setStores] = useState<IStore[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [forms, setForms] = useState<ProductForm[]>([emptyForm()]);
+  const [form, setForm] = useState<ProductForm>(() => emptyForm());
   const [saving, setSaving] = useState(false);
   const [selection, setSelection] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
 
@@ -72,10 +72,10 @@ const ProductsPage: React.FC = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
+  const closePanel = () => {
+    setPanelOpen(false);
     setEditId(null);
-    setForms([emptyForm(defaultUnit)]);
+    setForm(emptyForm(defaultUnit));
   };
 
   const openCreate = () => {
@@ -83,46 +83,44 @@ const ProductsPage: React.FC = () => {
     const base = emptyForm(defaultUnit);
     if (stores.length) base.storeId = String(stores[0].id);
     if (specs.length) base.spec = specs[0];
-    setForms([base]);
-    setDrawerOpen(true);
+    setForm(base);
+    setPanelOpen(true);
   };
 
   const openEdit = (row: IProduct) => {
     setEditId(row.id);
-    setForms([{
+    setForm({
       storeId: String(row.storeId),
       name: row.name,
       spec: row.spec || '',
       unit: row.unit,
       categoryLabel: row.categoryLabel || '',
       note: row.note || '',
-    }]);
-    setDrawerOpen(true);
+    });
+    setPanelOpen(true);
   };
 
   const handleSave = async () => {
-    for (let i = 0; i < forms.length; i++) {
-      if (!forms[i].storeId || !forms[i].name.trim()) {
-        enqueueSnackbar(`${i + 1}行目: 店舗と品名は必須です`, { variant: 'warning' });
-        return;
-      }
+    if (!form.storeId || !form.name.trim()) {
+      enqueueSnackbar('店舗と品名は必須です', { variant: 'warning' });
+      return;
     }
 
     setSaving(true);
     try {
+      const payload = { ...form, storeId: Number(form.storeId) };
       if (editId) {
-        await api.put(endpoints.masters.product(editId), {
-          ...forms[0],
-          storeId: Number(forms[0].storeId),
-        });
+        await api.put(endpoints.masters.product(editId), payload);
         enqueueSnackbar('商品を更新しました', { variant: 'success' });
+        closePanel();
       } else {
-        await Promise.all(forms.map((form) =>
-          api.post(endpoints.masters.products, { ...form, storeId: Number(form.storeId) })
-        ));
-        enqueueSnackbar(`${forms.length}件を登録しました`, { variant: 'success' });
+        await api.post(endpoints.masters.products, payload);
+        enqueueSnackbar('商品を登録しました', { variant: 'success' });
+        const next = emptyForm(defaultUnit);
+        if (stores.length) next.storeId = form.storeId || String(stores[0].id);
+        if (specs.length) next.spec = form.spec || specs[0];
+        setForm(next);
       }
-      closeDrawer();
       fetchData();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
@@ -150,6 +148,7 @@ const ProductsPage: React.FC = () => {
       await api.delete(endpoints.masters.product(id));
       enqueueSnackbar('商品を削除しました', { variant: 'success' });
       setSelection({ type: 'include', ids: new Set() });
+      if (editId === id) closePanel();
       fetchData();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '削除に失敗しました', { variant: 'error' });
@@ -190,7 +189,10 @@ const ProductsPage: React.FC = () => {
           ),
         } as GridColDef]
       : []),
-  ], [canManageMasters]);
+  ], [canManageMasters, editId]);
+
+  const unitOptions = form.unit && !units.includes(form.unit) ? [form.unit, ...units] : units;
+  const specOptions = form.spec && !specs.includes(form.spec) ? [form.spec, ...specs] : specs;
 
   return (
     <Box sx={pageTableRootSx}>
@@ -216,58 +218,57 @@ const ProductsPage: React.FC = () => {
         )}
       />
 
-      <Paper sx={tableFlexPaperSx}>
-        {loading ? (
-          <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : (
-          <DataGrid
-            rows={rows}
-            columns={columns}
-            checkboxSelection={canManageMasters}
-            rowSelectionModel={selection}
-            onRowSelectionModelChange={setSelection}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
-            onRowDoubleClick={(params) => canManageMasters && openEdit(params.row)}
-            sx={{ ...dataGridSx }}
-          />
-        )}
-      </Paper>
-
-      <MasterFormDrawer
-        open={drawerOpen}
-        mode={mode}
-        forms={forms}
-        saving={saving}
-        onClose={closeDrawer}
-        onSave={handleSave}
-        onAddRow={() => {
-          const next = emptyForm(defaultUnit);
-          if (stores.length) next.storeId = forms[0]?.storeId || String(stores[0].id);
-          if (specs.length) next.spec = forms[0]?.spec || specs[0];
-          setForms((prev) => [...prev, next]);
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 1.5,
         }}
-        onRemoveRow={(index) => setForms((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== index)))}
-        onChange={(index, name, value) => {
-          setForms((prev) => prev.map((f, i) => (i === index ? { ...f, [name]: value } : f)));
-        }}
-        renderFields={(form, index) => {
-          const patch = (key: keyof ProductForm, value: string) => {
-            setForms((prev) => prev.map((f, i) => (i === index ? { ...f, [key]: value } : f)));
-          };
-          const unitOptions = form.unit && !units.includes(form.unit) ? [form.unit, ...units] : units;
-          const specOptions = form.spec && !specs.includes(form.spec) ? [form.spec, ...specs] : specs;
+      >
+        <Paper
+          sx={{
+            ...tableFlexPaperSx,
+            display: { xs: panelOpen ? 'none' : 'flex', md: 'flex' },
+            flexDirection: 'column',
+          }}
+        >
+          {loading ? (
+            <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : (
+            <DataGrid
+              rows={rows}
+              columns={columns}
+              checkboxSelection={canManageMasters}
+              rowSelectionModel={selection}
+              onRowSelectionModelChange={setSelection}
+              pageSizeOptions={[20, 50, 100]}
+              initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
+              disableRowSelectionOnClick
+              onRowDoubleClick={(params) => canManageMasters && openEdit(params.row)}
+              sx={{ ...dataGridSx }}
+            />
+          )}
+        </Paper>
 
-          return (
+        <MasterFormPanel
+          open={panelOpen}
+          mode={mode}
+          form={form}
+          saving={saving}
+          onClose={closePanel}
+          onSave={handleSave}
+          onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
+          renderFields={(f) => (
             <Stack spacing={1.5}>
               <TextField
                 select
                 label="店舗"
-                value={form.storeId}
-                onChange={(e) => patch('storeId', e.target.value)}
+                value={f.storeId}
+                onChange={(e) => setForm((prev) => ({ ...prev, storeId: e.target.value }))}
                 required
                 fullWidth
                 size="small"
@@ -276,8 +277,8 @@ const ProductsPage: React.FC = () => {
               </TextField>
               <TextField
                 label="品名"
-                value={form.name}
-                onChange={(e) => patch('name', e.target.value)}
+                value={f.name}
+                onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
                 required
                 fullWidth
                 size="small"
@@ -285,8 +286,8 @@ const ProductsPage: React.FC = () => {
               <TextField
                 select
                 label="規格"
-                value={form.spec}
-                onChange={(e) => patch('spec', e.target.value)}
+                value={f.spec}
+                onChange={(e) => setForm((prev) => ({ ...prev, spec: e.target.value }))}
                 fullWidth
                 size="small"
                 disabled={!specOptions.length}
@@ -296,8 +297,8 @@ const ProductsPage: React.FC = () => {
               <TextField
                 select
                 label="単位"
-                value={form.unit}
-                onChange={(e) => patch('unit', e.target.value)}
+                value={f.unit}
+                onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
                 fullWidth
                 size="small"
               >
@@ -305,24 +306,24 @@ const ProductsPage: React.FC = () => {
               </TextField>
               <TextField
                 label="カテゴリ"
-                value={form.categoryLabel}
-                onChange={(e) => patch('categoryLabel', e.target.value)}
+                value={f.categoryLabel}
+                onChange={(e) => setForm((prev) => ({ ...prev, categoryLabel: e.target.value }))}
                 fullWidth
                 size="small"
               />
               <TextField
                 label="備考"
-                value={form.note}
-                onChange={(e) => patch('note', e.target.value)}
+                value={f.note}
+                onChange={(e) => setForm((prev) => ({ ...prev, note: e.target.value }))}
                 multiline
                 rows={2}
                 fullWidth
                 size="small"
               />
             </Stack>
-          );
-        }}
-      />
+          )}
+        />
+      </Box>
     </Box>
   );
 };

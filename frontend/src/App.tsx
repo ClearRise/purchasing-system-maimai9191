@@ -6,6 +6,7 @@ import { useDispatch } from 'react-redux';
 import theme from 'src/theme/theme';
 import { Path } from 'src/constants/enums';
 import ProtectedRoute from 'src/components/common/ProtectedRoute';
+import MinimalSnackbar from 'src/components/common/MinimalSnackbar';
 import MainLayout from 'src/layouts/MainLayout';
 import LoginPage from 'src/pages/Login';
 import DashboardPage from 'src/pages/Dashboard';
@@ -63,7 +64,25 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => (
   <ThemeProvider theme={theme}>
     <CssBaseline />
-    <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'top', horizontal: 'right' }}>
+    <SnackbarProvider
+      maxSnack={3}
+      autoHideDuration={2800}
+      preventDuplicate
+      dense
+      hideIconVariant
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      classes={{
+        containerRoot: 'minimal-snackbar-container',
+        containerAnchorOriginTopCenter: 'minimal-snackbar-top-center',
+      }}
+      Components={{
+        default: MinimalSnackbar,
+        success: MinimalSnackbar,
+        error: MinimalSnackbar,
+        warning: MinimalSnackbar,
+        info: MinimalSnackbar,
+      }}
+    >
       <AppRoutes />
     </SnackbarProvider>
   </ThemeProvider>

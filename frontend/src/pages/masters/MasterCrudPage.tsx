@@ -6,7 +6,7 @@ import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
-import MasterFormDrawer, { type MasterField } from 'src/components/common/MasterFormDrawer';
+import MasterFormPanel, { type MasterField } from 'src/components/common/MasterFormPanel';
 import { api } from 'src/libs/api';
 import { dataGridSx } from 'src/theme/theme';
 import { pageTableRootSx, tableFlexPaperSx } from 'src/constants/layout';
@@ -35,9 +35,9 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
   const { enqueueSnackbar } = useSnackbar();
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [forms, setForms] = useState<FormRow[]>([emptyForm(fields)]);
+  const [form, setForm] = useState<FormRow>(() => emptyForm(fields));
   const [saving, setSaving] = useState(false);
   const [selection, setSelection] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
 
@@ -61,43 +61,42 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
+  const closePanel = () => {
+    setPanelOpen(false);
     setEditId(null);
-    setForms([emptyForm(fields)]);
+    setForm(emptyForm(fields));
   };
 
   const openCreate = () => {
     setEditId(null);
-    setForms([emptyForm(fields)]);
-    setDrawerOpen(true);
+    setForm(emptyForm(fields));
+    setPanelOpen(true);
   };
 
   const openEdit = (row: T) => {
     setEditId(row.id);
-    setForms([Object.fromEntries(fields.map((f) => [f.name, String(row[f.name] ?? '')]))]);
-    setDrawerOpen(true);
+    setForm(Object.fromEntries(fields.map((f) => [f.name, String(row[f.name] ?? '')])));
+    setPanelOpen(true);
   };
 
   const handleSave = async () => {
-    for (let i = 0; i < forms.length; i++) {
-      const missing = fields.filter((f) => f.required && !forms[i][f.name]?.trim()).map((f) => f.label);
-      if (missing.length) {
-        enqueueSnackbar(`${i + 1}行目: ${missing.join('・')}は必須です`, { variant: 'warning' });
-        return;
-      }
+    const missing = fields.filter((f) => f.required && !form[f.name]?.trim()).map((f) => f.label);
+    if (missing.length) {
+      enqueueSnackbar(`${missing.join('・')}は必須です`, { variant: 'warning' });
+      return;
     }
 
     setSaving(true);
     try {
       if (editId) {
-        await api.put(`${endpoint}/${editId}`, forms[0]);
+        await api.put(`${endpoint}/${editId}`, form);
         enqueueSnackbar('更新しました', { variant: 'success' });
+        closePanel();
       } else {
-        await Promise.all(forms.map((form) => api.post(endpoint, form)));
-        enqueueSnackbar(`${forms.length}件を登録しました`, { variant: 'success' });
+        await api.post(endpoint, form);
+        enqueueSnackbar('登録しました', { variant: 'success' });
+        setForm(emptyForm(fields));
       }
-      closeDrawer();
       fetchData();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
@@ -125,6 +124,7 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
       await api.delete(`${endpoint}/${id}`);
       enqueueSnackbar('削除しました', { variant: 'success' });
       setSelection({ type: 'include', ids: new Set() });
+      if (editId === id) closePanel();
       fetchData();
     } catch {
       enqueueSnackbar('削除に失敗しました', { variant: 'error' });
@@ -152,7 +152,7 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
         ),
       },
     ];
-  }, [canEdit, columns]);
+  }, [canEdit, columns, editId]);
 
   return (
     <Box sx={pageTableRootSx}>
@@ -178,41 +178,53 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
         )}
       />
 
-      <Paper sx={tableFlexPaperSx}>
-        {loading ? (
-          <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={32} />
-          </Box>
-        ) : (
-          <DataGrid
-            rows={rows}
-            columns={gridColumns}
-            checkboxSelection={canEdit}
-            rowSelectionModel={selection}
-            onRowSelectionModelChange={setSelection}
-            pageSizeOptions={[20, 50, 100]}
-            initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
-            disableRowSelectionOnClick
-            onRowDoubleClick={(params) => canEdit && openEdit(params.row as T)}
-            sx={{ ...dataGridSx }}
-          />
-        )}
-      </Paper>
-
-      <MasterFormDrawer
-        open={drawerOpen}
-        mode={mode}
-        forms={forms}
-        fields={fields}
-        saving={saving}
-        onClose={closeDrawer}
-        onSave={handleSave}
-        onAddRow={() => setForms((prev) => [...prev, emptyForm(fields)])}
-        onRemoveRow={(index) => setForms((prev) => prev.length <= 1 ? prev : prev.filter((_, i) => i !== index))}
-        onChange={(index, name, value) => {
-          setForms((prev) => prev.map((f, i) => (i === index ? { ...f, [name]: value } : f)));
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 1.5,
         }}
-      />
+      >
+        <Paper
+          sx={{
+            ...tableFlexPaperSx,
+            display: { xs: panelOpen ? 'none' : 'flex', md: 'flex' },
+            flexDirection: 'column',
+          }}
+        >
+          {loading ? (
+            <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress size={32} />
+            </Box>
+          ) : (
+            <DataGrid
+              rows={rows}
+              columns={gridColumns}
+              checkboxSelection={canEdit}
+              rowSelectionModel={selection}
+              onRowSelectionModelChange={setSelection}
+              pageSizeOptions={[20, 50, 100]}
+              initialState={{ pagination: { paginationModel: { pageSize: 20 } } }}
+              disableRowSelectionOnClick
+              onRowDoubleClick={(params) => canEdit && openEdit(params.row as T)}
+              sx={{ ...dataGridSx }}
+            />
+          )}
+        </Paper>
+
+        <MasterFormPanel
+          open={panelOpen}
+          mode={mode}
+          form={form}
+          fields={fields}
+          saving={saving}
+          onClose={closePanel}
+          onSave={handleSave}
+          onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
+        />
+      </Box>
     </Box>
   );
 }

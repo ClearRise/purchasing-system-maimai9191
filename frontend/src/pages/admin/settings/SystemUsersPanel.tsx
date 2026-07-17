@@ -8,7 +8,7 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { useSnackbar } from 'notistack';
-import MasterFormDrawer from 'src/components/common/MasterFormDrawer';
+import MasterFormPanel from 'src/components/common/MasterFormPanel';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import { useAuth } from 'src/hooks/usePermissions';
@@ -58,9 +58,9 @@ const SystemUsersPanel: React.FC = () => {
   const { user: currentUser } = useAuth();
   const [rows, setRows] = useState<SystemUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [forms, setForms] = useState<UserForm[]>([{ ...EMPTY_FORM }]);
+  const [form, setForm] = useState<UserForm>({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -94,21 +94,21 @@ const SystemUsersPanel: React.FC = () => {
     );
   }, [rows, search]);
 
-  const closeDrawer = () => {
-    setDrawerOpen(false);
+  const closePanel = () => {
+    setPanelOpen(false);
     setEditId(null);
-    setForms([{ ...EMPTY_FORM }]);
+    setForm({ ...EMPTY_FORM });
   };
 
   const openCreate = () => {
     setEditId(null);
-    setForms([{ ...EMPTY_FORM }]);
-    setDrawerOpen(true);
+    setForm({ ...EMPTY_FORM });
+    setPanelOpen(true);
   };
 
   const openEdit = (row: SystemUser) => {
     setEditId(row.id);
-    setForms([{
+    setForm({
       email: row.email,
       username: row.username,
       password: '',
@@ -116,12 +116,11 @@ const SystemUsersPanel: React.FC = () => {
       lastName: row.lastName || '',
       role: row.role,
       isActive: row.isActive ? 'true' : 'false',
-    }]);
-    setDrawerOpen(true);
+    });
+    setPanelOpen(true);
   };
 
   const handleSave = async () => {
-    const form = forms[0];
     const missing: string[] = [];
     if (!form.email.trim()) missing.push('メール');
     if (!form.username.trim()) missing.push('ユーザー名');
@@ -147,11 +146,12 @@ const SystemUsersPanel: React.FC = () => {
       if (editId) {
         await api.put(endpoints.users.detail(editId), payload);
         enqueueSnackbar('ユーザーを更新しました', { variant: 'success' });
+        closePanel();
       } else {
         await api.post(endpoints.users.list, payload);
         enqueueSnackbar('ユーザーを登録しました', { variant: 'success' });
+        setForm({ ...EMPTY_FORM });
       }
-      closeDrawer();
       fetchUsers();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
@@ -171,6 +171,7 @@ const SystemUsersPanel: React.FC = () => {
     try {
       await api.delete(endpoints.users.detail(row.id));
       enqueueSnackbar('ユーザーを削除しました', { variant: 'success' });
+      if (editId === row.id) closePanel();
       fetchUsers();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '削除に失敗しました', { variant: 'error' });
@@ -248,10 +249,10 @@ const SystemUsersPanel: React.FC = () => {
         </Box>
       ),
     },
-  ], [currentUser?.id]);
+  ], [currentUser?.id, editId]);
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 480 }}>
       <Box sx={{ display: 'flex', gap: 1, mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
         <TextField
           size="small"
@@ -266,112 +267,124 @@ const SystemUsersPanel: React.FC = () => {
         </Button>
       </Box>
 
-      <Paper sx={{ ...tableFlexPaperSx, height: 480 }}>
-        {loading ? (
-          <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
-            <CircularProgress size={28} />
-          </Box>
-        ) : (
-          <DataGrid
-            rows={filteredRows}
-            columns={columns}
-            disableRowSelectionOnClick
-            pageSizeOptions={[10, 25, 50]}
-            initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-            sx={{ ...dataGridSx }}
-          />
-        )}
-      </Paper>
-
-      <MasterFormDrawer
-        open={drawerOpen}
-        mode={mode}
-        forms={forms}
-        saving={saving}
-        allowMultiAdd={false}
-        onClose={closeDrawer}
-        onSave={handleSave}
-        onAddRow={() => {}}
-        onRemoveRow={() => {}}
-        onChange={(index, name, value) => {
-          setForms((prev) => prev.map((f, i) => (i === index ? { ...f, [name]: value } : f)));
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: { xs: 'column', md: 'row' },
+          gap: 1.5,
+          height: 480,
         }}
-        renderFields={(form) => (
-          <Stack spacing={1.5}>
-            <TextField
-              size="small"
-              label="姓"
-              value={form.lastName}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], lastName: e.target.value }])}
-              fullWidth
+      >
+        <Paper
+          sx={{
+            ...tableFlexPaperSx,
+            display: { xs: panelOpen ? 'none' : 'flex', md: 'flex' },
+            flexDirection: 'column',
+          }}
+        >
+          {loading ? (
+            <Box sx={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+              <CircularProgress size={28} />
+            </Box>
+          ) : (
+            <DataGrid
+              rows={filteredRows}
+              columns={columns}
+              disableRowSelectionOnClick
+              pageSizeOptions={[10, 25, 50]}
+              initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+              sx={{ ...dataGridSx }}
             />
-            <TextField
-              size="small"
-              label="名"
-              value={form.firstName}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], firstName: e.target.value }])}
-              fullWidth
-            />
-            <TextField
-              size="small"
-              label="ユーザー名"
-              required
-              value={form.username}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], username: e.target.value }])}
-              fullWidth
-            />
-            <TextField
-              size="small"
-              label="メール"
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], email: e.target.value }])}
-              fullWidth
-            />
-            <TextField
-              size="small"
-              label={mode === 'edit' ? 'パスワード（変更時のみ）' : 'パスワード'}
-              type="password"
-              required={mode === 'create'}
-              value={form.password}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], password: e.target.value }])}
-              fullWidth
-              helperText={mode === 'create' ? '英大文字・小文字・数字を含む8文字以上' : '空欄のままなら変更しません'}
-            />
-            <TextField
-              select
-              size="small"
-              label="ロール"
-              required
-              value={form.role}
-              onChange={(e) => setForms((prev) => [{ ...prev[0], role: e.target.value }])}
-              fullWidth
-            >
-              {ROLE_OPTIONS.map((opt) => (
-                <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
-              ))}
-            </TextField>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.isActive === 'true'}
-                  onChange={(e) =>
-                    setForms((prev) => [{ ...prev[0], isActive: e.target.checked ? 'true' : 'false' }])
-                  }
-                  disabled={currentUser?.id === editId}
-                />
-              }
-              label={form.isActive === 'true' ? '有効' : '無効'}
-            />
-            {currentUser?.id === editId && (
-              <Typography variant="caption" color="text.secondary">
-                自分自身のアカウントは無効化できません
-              </Typography>
-            )}
-          </Stack>
-        )}
-      />
+          )}
+        </Paper>
+
+        <MasterFormPanel
+          open={panelOpen}
+          mode={mode}
+          form={form}
+          saving={saving}
+          onClose={closePanel}
+          onSave={handleSave}
+          onChange={(name, value) => setForm((prev) => ({ ...prev, [name]: value }))}
+          renderFields={(f) => (
+            <Stack spacing={1.5}>
+              <TextField
+                size="small"
+                label="姓"
+                value={f.lastName}
+                onChange={(e) => setForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="名"
+                value={f.firstName}
+                onChange={(e) => setForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="ユーザー名"
+                required
+                value={f.username}
+                onChange={(e) => setForm((prev) => ({ ...prev, username: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label="メール"
+                type="email"
+                required
+                value={f.email}
+                onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+                fullWidth
+              />
+              <TextField
+                size="small"
+                label={mode === 'edit' ? 'パスワード（変更時のみ）' : 'パスワード'}
+                type="password"
+                required={mode === 'create'}
+                value={f.password}
+                onChange={(e) => setForm((prev) => ({ ...prev, password: e.target.value }))}
+                fullWidth
+                helperText={mode === 'create' ? '英大文字・小文字・数字を含む8文字以上' : '空欄のままなら変更しません'}
+              />
+              <TextField
+                select
+                size="small"
+                label="ロール"
+                required
+                value={f.role}
+                onChange={(e) => setForm((prev) => ({ ...prev, role: e.target.value }))}
+                fullWidth
+              >
+                {ROLE_OPTIONS.map((opt) => (
+                  <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
+                ))}
+              </TextField>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={f.isActive === 'true'}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, isActive: e.target.checked ? 'true' : 'false' }))
+                    }
+                    disabled={currentUser?.id === editId}
+                  />
+                }
+                label={f.isActive === 'true' ? '有効' : '無効'}
+              />
+              {currentUser?.id === editId && (
+                <Typography variant="caption" color="text.secondary">
+                  自分自身のアカウントは無効化できません
+                </Typography>
+              )}
+            </Stack>
+          )}
+        />
+      </Box>
     </Box>
   );
 };
