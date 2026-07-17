@@ -45,7 +45,7 @@ class QuotationService {
       ],
       limit,
       offset: (page - 1) * limit,
-      order: [[sortBy || 'createdAt', sortOrder || 'DESC']],
+      order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
   }
@@ -76,7 +76,7 @@ class QuotationService {
 
     const products = await Product.findAll({
       where: { storeId: input.storeId, isActive: true },
-      order: [['sortOrder', 'ASC'], ['name', 'ASC']],
+      order: [['id', 'ASC']],
     });
 
     const quotationNo = await this.generateQuotationNo(input.periodStart);

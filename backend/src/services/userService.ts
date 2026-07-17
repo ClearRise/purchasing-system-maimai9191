@@ -49,8 +49,8 @@ class UserService {
       limit = 10,
       search,
       isActive,
-      sortBy = 'createdAt',
-      sortOrder = 'DESC',
+      sortBy = 'id',
+      sortOrder = 'ASC',
     } = options;
 
     // Calculate offset

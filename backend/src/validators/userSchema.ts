@@ -176,7 +176,7 @@ export const fetchUsersSchema = Joi.object({
   sortBy: Joi.string()
     .optional()
     .valid('id', 'email', 'firstName', 'lastName', 'createdAt', 'updatedAt', 'lastLogin')
-    .default('createdAt')
+    .default('id')
     .messages({
       'any.only': 'sortBy must be one of: id, email, firstName, lastName, createdAt, updatedAt, lastLogin',
     }),
@@ -185,7 +185,7 @@ export const fetchUsersSchema = Joi.object({
     .optional()
     .valid('ASC', 'DESC')
     .uppercase()
-    .default('DESC')
+    .default('ASC')
     .messages({
       'any.only': 'sortOrder must be either ASC or DESC',
     }),

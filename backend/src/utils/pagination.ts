@@ -26,8 +26,9 @@ export function parsePagination(query: Record<string, unknown>): IPaginationOpti
     page: Math.max(1, parseInt(String(query.page || '1'), 10)),
     limit: Math.min(100, Math.max(1, parseInt(String(query.limit || '20'), 10))),
     search: query.search ? String(query.search) : undefined,
-    sortBy: query.sortBy ? String(query.sortBy) : 'createdAt',
-    sortOrder: query.sortOrder === 'ASC' ? 'ASC' : 'DESC',
+    // Default = database row order (primary key)
+    sortBy: query.sortBy ? String(query.sortBy) : 'id',
+    sortOrder: query.sortOrder === 'DESC' ? 'DESC' : 'ASC',
   };
 }
 

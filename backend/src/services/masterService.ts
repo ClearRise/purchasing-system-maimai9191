@@ -20,7 +20,7 @@ class MasterService {
       where,
       limit,
       offset: (page - 1) * limit,
-      order: [[sortBy || 'name', sortOrder || 'DESC']],
+      order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
   }
@@ -50,7 +50,7 @@ class MasterService {
       where,
       limit,
       offset: (page - 1) * limit,
-      order: [[sortBy || 'name', sortOrder || 'DESC']],
+      order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
   }
@@ -74,7 +74,7 @@ class MasterService {
 
   // --- Categories ---
   async listCategories() {
-    return Category.findAll({ order: [['sortOrder', 'ASC'], ['name', 'ASC']] });
+    return Category.findAll({ order: [['id', 'ASC']] });
   }
 
   async createCategory(data: Partial<Category>) {
@@ -91,7 +91,7 @@ class MasterService {
       include: [{ model: Store, as: 'stores', through: { attributes: [] } }],
       limit,
       offset: (page - 1) * limit,
-      order: [[sortBy || 'name', sortOrder || 'DESC']],
+      order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
   }
@@ -147,7 +147,7 @@ class MasterService {
       ],
       limit,
       offset: (page - 1) * limit,
-      order: [[sortBy || 'id', sortOrder || 'ASC'], ['name', 'ASC']],
+      order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
   }
@@ -196,11 +196,11 @@ class MasterService {
   }
 
   async getAllActiveSuppliers() {
-    return Supplier.findAll({ where: { isActive: true }, order: [['name', 'ASC']] });
+    return Supplier.findAll({ where: { isActive: true }, order: [['id', 'ASC']] });
   }
 
   async getAllActiveStores() {
-    return Store.findAll({ where: { isActive: true }, order: [['name', 'ASC']] });
+    return Store.findAll({ where: { isActive: true }, order: [['id', 'ASC']] });
   }
 }
 

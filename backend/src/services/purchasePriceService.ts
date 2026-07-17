@@ -30,7 +30,7 @@ interface SupplierPriceRow {
 
 class PurchasePriceService {
   private async loadStoreProducts(storeId: number) {
-    const allSuppliers = await Supplier.findAll({ where: { isActive: true }, order: [['name', 'ASC']] });
+    const allSuppliers = await Supplier.findAll({ where: { isActive: true }, order: [['id', 'ASC']] });
 
     const products = await Product.findAll({
       where: { isActive: true, storeId },
@@ -38,7 +38,7 @@ class PurchasePriceService {
         { model: Supplier, as: 'suppliers', through: { attributes: [] } },
         { model: Store, as: 'store', attributes: ['id', 'name'] },
       ],
-      order: [['sortOrder', 'ASC'], ['name', 'ASC']],
+      order: [['id', 'ASC']],
     });
 
     return products.map((product) => {
@@ -88,13 +88,9 @@ class PurchasePriceService {
           { model: Supplier, as: 'suppliers', through: { attributes: [] } },
           { model: Store, as: 'store', attributes: ['id', 'name'] },
         ],
-        order: [
-          [{ model: Store, as: 'store' }, 'name', 'ASC'],
-          ['sortOrder', 'ASC'],
-          ['name', 'ASC'],
-        ],
+        order: [['id', 'ASC']],
       }),
-      Supplier.findAll({ where: { isActive: true }, order: [['name', 'ASC']] }),
+      Supplier.findAll({ where: { isActive: true }, order: [['id', 'ASC']] }),
     ]);
 
     const prices = await PurchasePrice.findAll({
