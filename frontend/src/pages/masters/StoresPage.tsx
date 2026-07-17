@@ -11,7 +11,6 @@ const columns = [
 ];
 
 const fields = [
-  { name: 'storeCode', label: '店舗CD', required: true },
   { name: 'name', label: '店舗名', required: true },
   { name: 'groupName', label: 'グループ' },
   { name: 'location', label: '位置' },

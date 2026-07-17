@@ -50,7 +50,6 @@ export interface ISupplier {
 
 export interface IStore {
   id: number;
-  storeCode: string;
   name: string;
   groupName?: string;
   location?: string;

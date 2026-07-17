@@ -45,7 +45,7 @@ class MasterService {
   // --- Stores ---
   async listStores(query: Record<string, unknown>) {
     const { page, limit, search, sortBy, sortOrder } = parsePagination(query);
-    const where = { isActive: true, ...searchCondition(['name', 'storeCode', 'groupName'], search) };
+    const where = { isActive: true, ...searchCondition(['name', 'groupName'], search) };
     const { count, rows } = await Store.findAndCountAll({
       where,
       limit,
@@ -141,7 +141,7 @@ class MasterService {
     const { count, rows } = await Product.findAndCountAll({
       where,
       include: [
-        { model: Store, as: 'store', attributes: ['id', 'name', 'storeCode'] },
+        { model: Store, as: 'store', attributes: ['id', 'name'] },
         { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
         { model: Supplier, as: 'suppliers', through: { attributes: [] }, attributes: ['id', 'name'] },
       ],

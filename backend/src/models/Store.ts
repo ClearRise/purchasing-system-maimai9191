@@ -3,7 +3,6 @@ import sequelize from '@/config/database';
 
 export interface IStoreAttributes {
   id: number;
-  storeCode: string;
   name: string;
   groupName?: string;
   location?: string;
@@ -18,7 +17,6 @@ export type IStoreCreation = Optional<IStoreAttributes, 'id' | 'isActive' | 'cre
 
 class Store extends Model<IStoreAttributes, IStoreCreation> implements IStoreAttributes {
   public id!: number;
-  public storeCode!: string;
   public name!: string;
   public groupName?: string;
   public location?: string;
@@ -32,7 +30,6 @@ class Store extends Model<IStoreAttributes, IStoreCreation> implements IStoreAtt
 Store.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    storeCode: { type: DataTypes.STRING(20), allowNull: false },
     name: { type: DataTypes.STRING(100), allowNull: false },
     groupName: { type: DataTypes.STRING(100), allowNull: true },
     location: { type: DataTypes.STRING(255), allowNull: true },
