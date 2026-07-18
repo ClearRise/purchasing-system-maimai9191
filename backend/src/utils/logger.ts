@@ -1,6 +1,14 @@
 import { createLogger, format, transports, Logger } from 'winston';
+import fs from 'fs';
 import path from 'path';
 import { NODE_ENV } from '@/config/constants';
+
+const logsDir = path.join(__dirname, '../logs');
+try {
+  fs.mkdirSync(logsDir, { recursive: true });
+} catch {
+  // ignore — console transport still works
+}
 
 // Custom level filter
 const levelFilter = (level: string) =>
@@ -45,32 +53,26 @@ const logger: Logger = createLogger({
     logFormat
   ),
   transports: [
-    ...(NODE_ENV === 'development' ? [new transports.Console()] : []),
-
-    // Info.log: only info and warn
-    new transports.File({
-      filename: path.join(__dirname, '../logs/info.log'),
-      format: format.combine(
-        levelFilter('info')
-      )
+    // Always log to console so PM2 / nginx debugging can see startup failures
+    new transports.Console({
+      level: NODE_ENV === 'development' ? 'debug' : 'info',
     }),
 
-    // Warn.log: only warn
     new transports.File({
-      filename: path.join(__dirname, '../logs/warn.log'),
-      format: format.combine(
-        levelFilter('warn')
-      )
+      filename: path.join(logsDir, 'info.log'),
+      format: format.combine(levelFilter('info')),
     }),
 
-    // Error.log: only error
     new transports.File({
-      filename: path.join(__dirname, '../logs/error.log'),
-      format: format.combine(
-        levelFilter('error')
-      )
+      filename: path.join(logsDir, 'warn.log'),
+      format: format.combine(levelFilter('warn')),
     }),
-  ]
+
+    new transports.File({
+      filename: path.join(logsDir, 'error.log'),
+      format: format.combine(levelFilter('error')),
+    }),
+  ],
 });
 
 export default logger;

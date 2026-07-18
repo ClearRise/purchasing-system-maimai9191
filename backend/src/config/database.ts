@@ -55,14 +55,21 @@ export const connectDatabase = async (): Promise<void> => {
 
     await ensureSchema();
 
-    if (!existed) {
-      logger.info('Tables were missing — running initial seed.');
-      await seedDatabase(true);
-    } else {
-      await seedDatabase(false);
+    try {
+      if (!existed) {
+        logger.info('Tables were missing — running initial seed.');
+        await seedDatabase(true);
+      } else {
+        await seedDatabase(false);
+      }
+    } catch (seedErr) {
+      // Schema is ready; seed must not take the whole API down
+      logger.error('Database seed failed (non-fatal):', seedErr);
+      console.error('Database seed failed (non-fatal):', seedErr);
     }
   } catch (error) {
     logger.error('Unable to connect to the database:', error);
+    console.error('Unable to connect to the database:', error);
     throw error;
   }
 };

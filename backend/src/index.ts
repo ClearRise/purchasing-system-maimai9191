@@ -75,6 +75,7 @@ async function initializeServer() {
     });
   } catch (error) {
     logger.error('Failed to initialize server:', error);
+    console.error('Failed to initialize server:', error);
     process.exit(1);
   }
 }

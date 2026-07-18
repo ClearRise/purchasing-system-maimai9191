@@ -96,13 +96,26 @@ jobs:
 
             # Health check against Node (not nginx)
             APP_PORT="$(grep -E '^SERVER_PORT=' .env 2>/dev/null | head -n1 | cut -d= -f2- | tr -d '\r\"' || true)"
-            APP_PORT="${APP_PORT:-5000}"
+            # Match backend/src/config/constants.ts default
+            APP_PORT="${APP_PORT:-8000}"
             echo ">>> health check http://127.0.0.1:${APP_PORT}/api/health"
-            sleep 2
-            curl -sf "http://127.0.0.1:${APP_PORT}/api/health" || {
+            ok=0
+            for i in 1 2 3 4 5 6 7 8 9 10; do
+              if curl -sf "http://127.0.0.1:${APP_PORT}/api/health"; then
+                ok=1
+                break
+              fi
+              echo ">>> waiting for app... ($i/10)"
+              sleep 2
+            done
+            if [ "$ok" -ne 1 ]; then
               echo "::error::Backend health check failed on port ${APP_PORT}"
-              pm2 logs "$PM2_APP" --lines 40 --nostream || true
+              pm2 status || true
+              pm2 logs "$PM2_APP" --lines 80 --nostream || true
+              echo ">>> file logs:"
+              ls -la logs dist/logs 2>/dev/null || true
+              tail -n 80 logs/error.log dist/logs/error.log 2>/dev/null || true
               exit 1
-            }
+            fi
             echo "=== Deploy finished ==="
             echo "Ensure nginx proxies app.kaniwaseika.com → 127.0.0.1:${APP_PORT}"

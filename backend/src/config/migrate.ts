@@ -62,6 +62,7 @@ export async function runMigrations(): Promise<void> {
     } catch (error) {
       await tx.rollback();
       logger.error(`Migration failed: ${filename}`, error);
+      console.error(`Migration failed: ${filename}`, error);
       throw error;
     }
   }
