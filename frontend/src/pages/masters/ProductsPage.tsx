@@ -545,7 +545,10 @@ const ProductsPage: React.FC = () => {
                     options={catalogOptions}
                     loading={catalogLoading}
                     getOptionLabel={(option) => (typeof option === 'string' ? option : option.name)}
-                    isOptionEqualToValue={(a, b) => a.id === b.id}
+                    isOptionEqualToValue={(a, b) => {
+                      if (typeof a === 'string' || typeof b === 'string') return a === b;
+                      return a.id === b.id;
+                    }}
                     filterOptions={(x) => x}
                     value={
                       selectedCatalogId
@@ -598,12 +601,13 @@ const ProductsPage: React.FC = () => {
                         autoFocus
                         helperText="既存商品を選ぶか、新しい品名を入力"
                         slotProps={{
+                          ...params.slotProps,
                           input: {
-                            ...params.InputProps,
+                            ...params.slotProps.input,
                             endAdornment: (
                               <>
                                 {catalogLoading ? <CircularProgress color="inherit" size={16} /> : null}
-                                {params.InputProps.endAdornment}
+                                {params.slotProps.input.endAdornment}
                               </>
                             ),
                           },
