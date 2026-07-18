@@ -28,14 +28,19 @@ const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASSWORD, {
   },
 });
 
-/** Create missing tables from models, then apply SQL migrations (safe for real data). */
+/** Create missing tables, apply SQL migrations, then optionally alter to match models. */
 export async function ensureSchema(): Promise<void> {
   await import('@/models');
-  // Dev: alter to match models. Prod: only create missing tables (no destructive alter).
-  await sequelize.sync({ alter: NODE_ENV === 'development' });
+  // Create missing tables only first — so migrations can backfill before columns are dropped.
+  await sequelize.sync();
 
   const { runMigrations } = await import('@/config/migrate');
   await runMigrations();
+
+  // Dev: alter to match models after data-preserving migrations.
+  if (NODE_ENV === 'development') {
+    await sequelize.sync({ alter: true });
+  }
 
   logger.info('Database schema ready.');
 }

@@ -89,6 +89,11 @@ export const listProducts = handle(async (req, res) => {
   res.json({ success: true, data });
 });
 
+export const searchProductCatalog = handle(async (req, res) => {
+  const data = await masterService.searchProductCatalog(req.query);
+  res.json({ success: true, data });
+});
+
 export const getProduct = handle(async (req, res) => {
   const data = await masterService.getProduct(Number(req.params.id));
   res.json({ success: true, data });
@@ -97,7 +102,12 @@ export const getProduct = handle(async (req, res) => {
 export const createProduct = handle(async (req, res) => {
   const { supplierIds, ...body } = req.body;
   const data = await masterService.createProduct(body, supplierIds);
-  res.status(201).json({ success: true, message: '商品を登録しました', data });
+  const linked = Boolean(body.productId);
+  res.status(201).json({
+    success: true,
+    message: linked ? '既存商品を店舗に追加しました' : '商品を登録しました',
+    data,
+  });
 });
 
 export const updateProduct = handle(async (req, res) => {
@@ -107,8 +117,12 @@ export const updateProduct = handle(async (req, res) => {
 });
 
 export const deleteProduct = handle(async (req, res) => {
-  await masterService.deleteProduct(Number(req.params.id));
-  res.json({ success: true, message: '商品を削除しました' });
+  const storeId = req.query.storeId ? Number(req.query.storeId) : undefined;
+  await masterService.deleteProduct(Number(req.params.id), storeId);
+  res.json({
+    success: true,
+    message: storeId ? '店舗から商品を外しました' : '商品を削除しました',
+  });
 });
 
 export const getLookupData = handle(async (_req, res) => {

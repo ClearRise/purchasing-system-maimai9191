@@ -67,16 +67,23 @@ export interface ICustomer {
   isActive: boolean;
 }
 
+export interface ICategory {
+  id: number;
+  categoryCode: string;
+  name: string;
+  sortOrder?: number;
+}
+
 export interface IProduct {
   id: number;
-  storeId: number;
   productCode: string;
   name: string;
   spec?: string;
   unit: string;
+  categoryId?: number | null;
   categoryLabel?: string;
   note?: string;
-  store?: IStore;
+  stores?: IStore[];
   suppliers?: ISupplier[];
   isActive: boolean;
 }

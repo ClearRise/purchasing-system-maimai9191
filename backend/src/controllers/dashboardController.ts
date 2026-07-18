@@ -74,7 +74,10 @@ export const getLookupOptions = async (req: Request, res: Response) => {
     if (kind === 'spec') {
       res.json({
         success: true,
-        data: data.map((r) => ({ value: r.value, unit: r.relatedValue || '' })),
+        data: data.map((r) => ({
+          value: r.value,
+          unit: (r as any).relatedUnit?.value || '',
+        })),
       });
       return;
     }
@@ -101,7 +104,10 @@ export const replaceLookupOptions = async (req: Request, res: Response) => {
       res.json({
         success: true,
         message: '規格マスタを更新しました',
-        data: rows.map((r) => ({ value: r.value, unit: r.relatedValue || '' })),
+        data: rows.map((r) => ({
+          value: r.value,
+          unit: (r as any).relatedUnit?.value || '',
+        })),
       });
       return;
     }

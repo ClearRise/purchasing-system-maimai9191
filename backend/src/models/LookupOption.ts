@@ -8,8 +8,8 @@ export interface ILookupOptionAttributes {
   id: number;
   kind: LookupKind;
   value: string;
-  /** For kind=spec: the 単位 this 規格 belongs to */
-  relatedValue?: string | null;
+  /** For kind=spec: FK to the 単位 lookup_options row */
+  relatedUnitId?: number | null;
   sortOrder: number;
   isActive: boolean;
   createdAt?: Date;
@@ -18,7 +18,7 @@ export interface ILookupOptionAttributes {
 
 export type ILookupOptionCreation = Optional<
   ILookupOptionAttributes,
-  'id' | 'relatedValue' | 'sortOrder' | 'isActive' | 'createdAt' | 'updatedAt'
+  'id' | 'relatedUnitId' | 'sortOrder' | 'isActive' | 'createdAt' | 'updatedAt'
 >;
 
 class LookupOption extends Model<ILookupOptionAttributes, ILookupOptionCreation>
@@ -26,7 +26,7 @@ class LookupOption extends Model<ILookupOptionAttributes, ILookupOptionCreation>
   public id!: number;
   public kind!: LookupKind;
   public value!: string;
-  public relatedValue?: string | null;
+  public relatedUnitId?: number | null;
   public sortOrder!: number;
   public isActive!: boolean;
   public readonly createdAt!: Date;
@@ -41,7 +41,7 @@ LookupOption.init(
       allowNull: false,
     },
     value: { type: DataTypes.STRING(50), allowNull: false },
-    relatedValue: { type: DataTypes.STRING(50), allowNull: true },
+    relatedUnitId: { type: DataTypes.INTEGER, allowNull: true, field: 'related_unit_id' },
     sortOrder: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
   },
@@ -51,7 +51,6 @@ LookupOption.init(
     modelName: 'LookupOption',
     indexes: [
       { unique: true, fields: ['kind', 'value'], name: 'lookup_options_kind_value_unique' },
-      { fields: ['kind', 'relatedValue'], name: 'lookup_options_kind_related_idx' },
     ],
   }
 );

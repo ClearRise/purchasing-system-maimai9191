@@ -5,6 +5,7 @@ import Customer from './Customer';
 import CustomerStore from './CustomerStore';
 import Category from './Category';
 import Product from './Product';
+import ProductStore from './ProductStore';
 import ProductSupplier from './ProductSupplier';
 import PurchasePrice from './PurchasePrice';
 import PurchasePriceLog from './PurchasePriceLog';
@@ -18,13 +19,41 @@ import LookupOption from './LookupOption';
 Store.belongsTo(User, { foreignKey: 'salesUserId', as: 'salesUser' });
 Customer.belongsTo(User, { foreignKey: 'salesUserId', as: 'salesUser' });
 
-// Store
-Product.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
-Store.hasMany(Product, { foreignKey: 'storeId', as: 'products' });
+// Product-Store M:N
+Product.belongsToMany(Store, {
+  through: ProductStore,
+  foreignKey: 'productId',
+  otherKey: 'storeId',
+  as: 'stores',
+});
+Store.belongsToMany(Product, {
+  through: ProductStore,
+  foreignKey: 'storeId',
+  otherKey: 'productId',
+  as: 'products',
+});
 
 // Category
-Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category' });
-Category.hasMany(Product, { foreignKey: 'categoryId', as: 'products' });
+Product.belongsTo(Category, { foreignKey: 'categoryId', as: 'category', constraints: false });
+Category.hasMany(Product, { foreignKey: 'categoryId', as: 'products', constraints: false });
+
+// Product unit / spec lookup options (FKs applied in SQL migrations)
+Product.belongsTo(LookupOption, { foreignKey: 'unitOptionId', as: 'unitOption', constraints: false });
+Product.belongsTo(LookupOption, { foreignKey: 'specOptionId', as: 'specOption', constraints: false });
+LookupOption.hasMany(Product, { foreignKey: 'unitOptionId', as: 'unitProducts', constraints: false });
+LookupOption.hasMany(Product, { foreignKey: 'specOptionId', as: 'specProducts', constraints: false });
+
+// Spec → unit relation on lookup_options
+LookupOption.belongsTo(LookupOption, {
+  foreignKey: 'relatedUnitId',
+  as: 'relatedUnit',
+  constraints: false,
+});
+LookupOption.hasMany(LookupOption, {
+  foreignKey: 'relatedUnitId',
+  as: 'relatedSpecs',
+  constraints: false,
+});
 
 // Supplier on product
 Product.belongsTo(Supplier, { foreignKey: 'defaultSupplierId', as: 'defaultSupplier' });
@@ -82,6 +111,7 @@ export {
   CustomerStore,
   Category,
   Product,
+  ProductStore,
   ProductSupplier,
   PurchasePrice,
   PurchasePriceLog,
@@ -100,6 +130,7 @@ export default {
   CustomerStore,
   Category,
   Product,
+  ProductStore,
   ProductSupplier,
   PurchasePrice,
   PurchasePriceLog,

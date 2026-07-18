@@ -6,10 +6,18 @@ import {
   PurchasePrice,
   PurchasePriceLog,
   Store,
-  ProductSupplier,
+  LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
 import { buildPagination, parsePagination } from '@/utils/pagination';
+
+function productUnit(product: Product): string {
+  return ((product as any).unitOption?.value as string) || 'PC';
+}
+
+function productSpec(product: Product): string | undefined {
+  return (product as any).specOption?.value as string | undefined;
+}
 
 interface BulkPriceItem {
   productId: number;
@@ -29,14 +37,22 @@ interface SupplierPriceRow {
 }
 
 class PurchasePriceService {
-  private async loadStoreProducts(storeId: number) {
+  private async loadProducts(storeId?: number) {
     const allSuppliers = await Supplier.findAll({ where: { isActive: true }, order: [['id', 'ASC']] });
 
     const products = await Product.findAll({
-      where: { isActive: true, storeId },
+      where: { isActive: true },
       include: [
         { model: Supplier, as: 'suppliers', through: { attributes: [] } },
-        { model: Store, as: 'store', attributes: ['id', 'name'] },
+        { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
+        { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
+        {
+          model: Store,
+          as: 'stores',
+          attributes: ['id', 'name'],
+          through: { attributes: [] },
+          ...(storeId ? { where: { id: storeId }, required: true } : { required: false }),
+        },
       ],
       order: [['id', 'ASC']],
     });
@@ -77,8 +93,8 @@ class PurchasePriceService {
   }
 
   async getGrid(targetYearMonth: string, storeId?: number, categoryId?: number, forEntry = false) {
+    // storeId filters which products appear (via product_stores); prices stay store-agnostic.
     const productWhere: Record<string, unknown> = { isActive: true };
-    if (storeId) productWhere.storeId = storeId;
     if (categoryId) productWhere.categoryId = categoryId;
 
     const [products, allSuppliers] = await Promise.all([
@@ -86,7 +102,17 @@ class PurchasePriceService {
         where: productWhere,
         include: [
           { model: Supplier, as: 'suppliers', through: { attributes: [] } },
-          { model: Store, as: 'store', attributes: ['id', 'name'] },
+          { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
+          { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
+          {
+            model: Store,
+            as: 'stores',
+            attributes: ['id', 'name'],
+            through: { attributes: [] },
+            ...(storeId
+              ? { where: { id: storeId }, required: true }
+              : { required: false }),
+          },
         ],
         order: [['id', 'ASC']],
       }),
@@ -121,7 +147,7 @@ class PurchasePriceService {
             supplierId: supplier.id,
             supplierName: supplier.name,
             purchasePrice: current ? Number(current.purchasePrice) : null,
-            unit: current?.unit || product.unit,
+            unit: current?.unit || productUnit(product),
             note: current?.note || null,
             priceId: current?.id || null,
           };
@@ -147,16 +173,16 @@ class PurchasePriceService {
 
         const validPrices = enriched.filter((e) => e.purchasePrice != null).map((e) => e.purchasePrice as number);
         const minPrice = validPrices.length ? Math.min(...validPrices) : null;
+        const stores = ((product as any).stores || []) as { id: number; name: string }[];
 
         return {
           productId: product.id,
           productCode: product.productCode,
           name: product.name,
-          spec: product.spec,
-          unit: product.unit,
+          spec: productSpec(product),
+          unit: productUnit(product),
           note: product.note,
-          storeId: product.storeId,
-          storeName: (product as any).store?.name,
+          stores,
           suppliers: enriched,
           minPrice,
         };
@@ -177,7 +203,7 @@ class PurchasePriceService {
     }
   ) {
     const { targetYearMonth, startYearMonth, endYearMonth, supplierId } = options;
-    const storeProducts = await this.loadStoreProducts(storeId);
+    const storeProducts = await this.loadProducts(storeId);
     if (!storeProducts.length) {
       return mode === 'supplier'
         ? { mode, targetYearMonth, storeId, suppliers: [], products: [] }
@@ -213,8 +239,8 @@ class PurchasePriceService {
           productId: product.id,
           productCode: product.productCode,
           name: product.name,
-          spec: product.spec,
-          unit: product.unit,
+          spec: productSpec(product),
+          unit: productUnit(product),
           note: product.note,
           prices: pricesBySupplier,
           minPrice,
@@ -271,8 +297,8 @@ class PurchasePriceService {
         productId: product.id,
         productCode: product.productCode,
         name: product.name,
-        spec: product.spec,
-        unit: product.unit,
+        spec: productSpec(product),
+        unit: productUnit(product),
         note: product.note,
         prices: pricesByMonth,
         changePct: changeByMonth,
@@ -300,9 +326,13 @@ class PurchasePriceService {
     const transaction = await sequelize.transaction();
     try {
       for (const item of items) {
-        const product = await Product.findByPk(item.productId, { transaction });
+        const product = await Product.findByPk(item.productId, {
+          include: [{ model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] }],
+          transaction,
+        });
         if (!product) continue;
-        if (item.unit !== product.unit) {
+        const resolvedUnit = productUnit(product);
+        if (item.unit !== resolvedUnit) {
           throw new CustomError(`商品「${product.name}」の単位が一致しません`, 400);
         }
 

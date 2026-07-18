@@ -21,6 +21,7 @@ const endpoints = {
     customers: '/masters/customers',
     customer: (id: number) => `/masters/customers/${id}`,
     products: '/masters/products',
+    productsCatalog: '/masters/products/catalog',
     product: (id: number) => `/masters/products/${id}`,
   },
   purchasePrices: {

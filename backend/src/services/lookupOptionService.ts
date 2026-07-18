@@ -25,6 +25,9 @@ class LookupOptionService {
     const k = assertKind(kind);
     return LookupOption.findAll({
       where: activeOnly ? { kind: k, isActive: true } : { kind: k },
+      include: k === 'spec'
+        ? [{ model: LookupOption, as: 'relatedUnit', attributes: ['id', 'value'] }]
+        : undefined,
       order: [['sortOrder', 'ASC'], ['id', 'ASC']],
     });
   }
@@ -35,9 +38,10 @@ class LookupOptionService {
       this.listByKind('spec', activeOnly),
     ]);
     const unitValues = units.map((r) => r.value);
+    const unitById = new Map(units.map((u) => [u.id, u.value]));
     const specItems = specs.map((r) => ({
       value: r.value,
-      unit: r.relatedValue || '',
+      unit: (r as any).relatedUnit?.value || (r.relatedUnitId ? unitById.get(r.relatedUnitId) : '') || '',
     }));
     const specsByUnit: Record<string, string[]> = {};
     for (const item of specItems) {
@@ -53,7 +57,7 @@ class LookupOptionService {
     };
   }
 
-  /** Replace the full unit list (order = array order). Cascades to related specs. */
+  /** Replace the full unit list (order = array order). Cascades to related specs via relatedUnitId. */
   async replaceUnits(values: string[]) {
     const unique = cleanUnique(values);
     const existing = await LookupOption.findAll({
@@ -67,10 +71,6 @@ class LookupOptionService {
         const row = existing[i];
         const next = unique[i];
         if (row.value !== next) {
-          await LookupOption.update(
-            { relatedValue: next },
-            { where: { kind: 'spec', relatedValue: row.value } }
-          );
           await row.update({ value: next, sortOrder: i, isActive: true });
         } else {
           await row.update({ sortOrder: i, isActive: true });
@@ -82,7 +82,7 @@ class LookupOptionService {
     const keep = new Set(unique);
     for (const row of existing) {
       if (!keep.has(row.value)) {
-        await LookupOption.destroy({ where: { kind: 'spec', relatedValue: row.value } });
+        await LookupOption.destroy({ where: { kind: 'spec', relatedUnitId: row.id } });
         await row.destroy();
       }
     }
@@ -97,7 +97,6 @@ class LookupOptionService {
       }
     }
 
-    // Refresh sort for remaining
     const refreshed = await LookupOption.findAll({ where: { kind: 'unit' } });
     for (let i = 0; i < unique.length; i++) {
       const row = refreshed.find((r) => r.value === unique[i]);
@@ -107,7 +106,7 @@ class LookupOptionService {
     return this.listByKind('unit', false);
   }
 
-  /** Replace full 規格 list with unit relation. */
+  /** Replace full 規格 list with unit relation (by unit value string from UI). */
   async replaceSpecs(items: SpecItemInput[]) {
     const cleaned: SpecItemInput[] = [];
     const seen = new Set<string>();
@@ -120,9 +119,9 @@ class LookupOptionService {
     }
 
     const unitRows = await this.listByKind('unit', false);
-    const validUnits = new Set(unitRows.map((u) => u.value));
+    const unitIdByValue = new Map(unitRows.map((u) => [u.value, u.id]));
     for (const item of cleaned) {
-      if (!validUnits.has(item.unit)) {
+      if (!unitIdByValue.has(item.unit)) {
         throw new CustomError(`規格「${item.value}」の単位「${item.unit}」が単位マスタにありません`, 400);
       }
     }
@@ -138,10 +137,11 @@ class LookupOptionService {
 
     for (let i = 0; i < cleaned.length; i++) {
       const item = cleaned[i];
+      const relatedUnitId = unitIdByValue.get(item.unit)!;
       const found = existing.find((r) => r.value === item.value);
       if (found) {
         await found.update({
-          relatedValue: item.unit,
+          relatedUnitId,
           sortOrder: i,
           isActive: true,
         });
@@ -149,7 +149,7 @@ class LookupOptionService {
         await LookupOption.create({
           kind: 'spec',
           value: item.value,
-          relatedValue: item.unit,
+          relatedUnitId,
           sortOrder: i,
           isActive: true,
         });

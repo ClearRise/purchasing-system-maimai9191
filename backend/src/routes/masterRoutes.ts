@@ -25,6 +25,7 @@ router.put('/customers/:id', salesAccess, master.updateCustomer);
 router.delete('/customers/:id', salesAccess, master.deleteCustomer);
 
 router.get('/products', readOnlySales, master.listProducts);
+router.get('/products/catalog', readOnlySales, master.searchProductCatalog);
 router.get('/products/:id', readOnlySales, master.getProduct);
 router.post('/products', purchaseAccess, master.createProduct);
 router.put('/products/:id', purchaseAccess, master.updateProduct);

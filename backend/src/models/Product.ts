@@ -3,17 +3,14 @@ import sequelize from '@/config/database';
 
 export interface IProductAttributes {
   id: number;
-  storeId: number;
   orderDisplayName?: string;
   productCode: string;
   companyProductCode?: string;
   name: string;
-  spec?: string;
-  specUnit?: string;
   contentAmount?: string;
-  unit: string;
-  categoryId?: number;
-  categoryLabel?: string;
+  unitOptionId: number;
+  specOptionId?: number | null;
+  categoryId?: number | null;
   shelfGroup?: string;
   defaultSupplierId?: number;
   stockTarget?: number;
@@ -24,21 +21,21 @@ export interface IProductAttributes {
   updatedAt?: Date;
 }
 
-export type IProductCreation = Optional<IProductAttributes, 'id' | 'isActive' | 'createdAt' | 'updatedAt'>;
+export type IProductCreation = Optional<
+  IProductAttributes,
+  'id' | 'specOptionId' | 'categoryId' | 'isActive' | 'createdAt' | 'updatedAt'
+>;
 
 class Product extends Model<IProductAttributes, IProductCreation> implements IProductAttributes {
   public id!: number;
-  public storeId!: number;
   public orderDisplayName?: string;
   public productCode!: string;
   public companyProductCode?: string;
   public name!: string;
-  public spec?: string;
-  public specUnit?: string;
   public contentAmount?: string;
-  public unit!: string;
-  public categoryId?: number;
-  public categoryLabel?: string;
+  public unitOptionId!: number;
+  public specOptionId?: number | null;
+  public categoryId?: number | null;
   public shelfGroup?: string;
   public defaultSupplierId?: number;
   public stockTarget?: number;
@@ -52,7 +49,6 @@ class Product extends Model<IProductAttributes, IProductCreation> implements IPr
 Product.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    storeId: { type: DataTypes.INTEGER, allowNull: false },
     orderDisplayName: { type: DataTypes.STRING(100), allowNull: true },
     productCode: { type: DataTypes.STRING(50), allowNull: false },
     companyProductCode: {
@@ -61,16 +57,10 @@ Product.init(
       field: 'ishii_product_code',
     },
     name: { type: DataTypes.STRING(100), allowNull: false },
-    spec: { type: DataTypes.STRING(50), allowNull: true },
-    specUnit: { type: DataTypes.STRING(20), allowNull: true },
     contentAmount: { type: DataTypes.STRING(50), allowNull: true },
-    unit: {
-      type: DataTypes.STRING(50),
-      allowNull: false,
-      defaultValue: 'PC',
-    },
+    unitOptionId: { type: DataTypes.INTEGER, allowNull: false, field: 'unit_option_id' },
+    specOptionId: { type: DataTypes.INTEGER, allowNull: true, field: 'spec_option_id' },
     categoryId: { type: DataTypes.INTEGER, allowNull: true },
-    categoryLabel: { type: DataTypes.STRING(50), allowNull: true },
     shelfGroup: { type: DataTypes.STRING(50), allowNull: true },
     defaultSupplierId: { type: DataTypes.INTEGER, allowNull: true },
     stockTarget: { type: DataTypes.DECIMAL(10, 2), allowNull: true },

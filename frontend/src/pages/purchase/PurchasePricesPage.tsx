@@ -14,6 +14,8 @@ import type { IStore } from 'src/types';
 import { usePermissions } from 'src/hooks/usePermissions';
 import { pageTableRootSx } from 'src/constants/layout';
 
+const ALL_STORES = 'all';
+
 const PurchasePricesPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { canManagePrices } = usePermissions();
@@ -21,7 +23,7 @@ const PurchasePricesPage: React.FC = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [storeId, setStoreId] = useState('');
+  const [storeId, setStoreId] = useState(ALL_STORES);
   const [storeSearch, setStoreSearch] = useState('');
   const [stores, setStores] = useState<IStore[]>([]);
   const [loadingStores, setLoadingStores] = useState(true);
@@ -34,12 +36,7 @@ const PurchasePricesPage: React.FC = () => {
     setLoadingStores(true);
     api.get(endpoints.masters.lookup)
       .then((res) => {
-        const loaded: IStore[] = res.data.data.stores || [];
-        setStores(loaded);
-        setStoreId((prev) => {
-          if (prev && loaded.some((s) => String(s.id) === prev)) return prev;
-          return loaded.length ? String(loaded[0].id) : '';
-        });
+        setStores(res.data.data.stores || []);
       })
       .catch(() => enqueueSnackbar('店舗の取得に失敗しました', { variant: 'error' }))
       .finally(() => setLoadingStores(false));
@@ -55,18 +52,14 @@ const PurchasePricesPage: React.FC = () => {
   }, [stores, storeSearch]);
 
   const fetchGrid = async () => {
-    if (!storeId) {
-      setGridRows([]);
-      return;
-    }
     setLoading(true);
     setEdited({});
     try {
       const res = await api.get(endpoints.purchasePrices.grid, {
         params: {
           targetYearMonth,
-          storeId: Number(storeId),
           forEntry: true,
+          ...(storeId !== ALL_STORES ? { storeId: Number(storeId) } : {}),
         },
       });
       setGridRows(res.data.data);
@@ -86,7 +79,13 @@ const PurchasePricesPage: React.FC = () => {
   const { columns, rows } = useMemo(() => gridToMatrix(gridRows), [gridRows]);
 
   const editedCount = Object.keys(edited).length;
-  const selectedStore = stores.find((s) => String(s.id) === storeId);
+  const selectedStore = storeId === ALL_STORES
+    ? null
+    : stores.find((s) => String(s.id) === storeId);
+  const storeLabel = storeId === ALL_STORES ? '全店舗' : (selectedStore?.name || '');
+  const storeSearchQ = storeSearch.trim().toLowerCase();
+  const showAllInSearch = !storeSearchQ || '全店舗'.includes(storeSearch.trim()) || 'すべて'.includes(storeSearchQ);
+
 
   const handleCellChange = (productId: number, colKey: string, value: string) => {
     const key = `${productId}-${colKey}`;
@@ -127,14 +126,14 @@ const PurchasePricesPage: React.FC = () => {
     <Box sx={pageTableRootSx}>
       <PageHeader
         title="月別仕入価格入力"
-        subtitle="店舗を選んで、商品×発注先のマトリクスで一括入力"
+        subtitle="店舗で商品を絞り込み、発注先×年月で価格を入力（価格は店舗共通）"
         action={canManagePrices && (
           <Button
             variant="contained"
             size="small"
             startIcon={<SaveOutlinedIcon />}
             onClick={handleSave}
-            disabled={saving || !editedCount || !storeId}
+            disabled={saving || !editedCount}
           >
             {saving ? '保存中...' : `保存${editedCount ? ` (${editedCount})` : ''}`}
           </Button>
@@ -150,7 +149,6 @@ const PurchasePricesPage: React.FC = () => {
           gap: 1.5,
         }}
       >
-        {/* Store list — same pattern as 商品マスタ */}
         <Paper
           sx={{
             width: { xs: '100%', md: 260 },
@@ -187,14 +185,43 @@ const PurchasePricesPage: React.FC = () => {
             <Box sx={{ display: 'flex', flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <CircularProgress size={24} />
             </Box>
-          ) : filteredStores.length === 0 ? (
+          ) : !showAllInSearch && filteredStores.length === 0 ? (
             <Box sx={{ p: 2.5, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
-                {stores.length ? '該当する店舗がありません' : '店舗がありません'}
+                該当する店舗がありません
               </Typography>
             </Box>
           ) : (
             <Box sx={{ flex: 1, overflow: 'auto' }}>
+              {showAllInSearch && (
+                <Box
+                  onClick={() => setStoreId(ALL_STORES)}
+                  sx={{
+                    px: 1.5,
+                    py: 1.1,
+                    cursor: 'pointer',
+                    bgcolor: storeId === ALL_STORES ? '#F1F5F9' : 'transparent',
+                    color: storeId === ALL_STORES ? 'text.primary' : 'text.secondary',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    '&:hover': {
+                      bgcolor: storeId === ALL_STORES ? '#E2E8F0' : 'action.hover',
+                      color: 'text.primary',
+                    },
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    noWrap
+                    sx={{ fontWeight: storeId === ALL_STORES ? 500 : 400, color: 'inherit' }}
+                  >
+                    全店舗
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
+                    すべての商品を表示
+                  </Typography>
+                </Box>
+              )}
               {filteredStores.map((store) => {
                 const active = String(store.id) === storeId;
                 return (
@@ -232,7 +259,6 @@ const PurchasePricesPage: React.FC = () => {
           )}
         </Paper>
 
-        {/* Matrix */}
         <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
           <Paper
             sx={{
@@ -253,12 +279,10 @@ const PurchasePricesPage: React.FC = () => {
               onChange={(e) => setTargetYearMonth(e.target.value)}
               slotProps={{ inputLabel: { shrink: true } }}
             />
-            {selectedStore && (
-              <Typography variant="body2" color="text.secondary">
-                {selectedStore.name}
-                {!loading && ` · ${rows.length} 商品 · ${columns.length} 発注先`}
-              </Typography>
-            )}
+            <Typography variant="body2" color="text.secondary">
+              {storeLabel}
+              {!loading && ` · ${rows.length} 商品 · ${columns.length} 発注先`}
+            </Typography>
           </Paper>
 
           {canManagePrices && editedCount > 0 && (
@@ -268,23 +292,19 @@ const PurchasePricesPage: React.FC = () => {
           )}
 
           <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-            {!storeId ? (
-              <Paper sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', p: 3 }}>
-                <Typography color="text.secondary">
-                  左のリストから店舗を選択してください
-                </Typography>
-              </Paper>
-            ) : (
-              <PriceMatrixTable
-                columns={columns}
-                rows={rows}
-                loading={loading}
-                editable={canManagePrices}
-                edited={edited}
-                onCellChange={handleCellChange}
-                emptyMessage="この店舗に商品がありません。商品マスタを登録してください。"
-              />
-            )}
+            <PriceMatrixTable
+              columns={columns}
+              rows={rows}
+              loading={loading}
+              editable={canManagePrices}
+              edited={edited}
+              onCellChange={handleCellChange}
+              emptyMessage={
+                storeId === ALL_STORES
+                  ? '商品がありません。商品マスタを登録してください。'
+                  : 'この店舗に商品がありません。商品マスタを登録してください。'
+              }
+            />
           </Box>
         </Box>
       </Box>

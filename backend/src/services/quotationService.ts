@@ -8,10 +8,32 @@ import {
   Product,
   RankMarginSetting,
   PurchasePrice,
+  Category,
+  LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
 import { buildPagination, parsePagination } from '@/utils/pagination';
 import purchasePriceService from '@/services/purchasePriceService';
+
+async function loadStoreProducts(storeId: number) {
+  return Product.findAll({
+    where: { isActive: true },
+    include: [
+      {
+        model: Store,
+        as: 'stores',
+        attributes: ['id'],
+        through: { attributes: [] },
+        where: { id: storeId },
+        required: true,
+      },
+      { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
+      { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
+      { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
+    ],
+    order: [['id', 'ASC']],
+  });
+}
 
 interface CreateQuotationInput {
   customerId: number;
@@ -74,10 +96,7 @@ class QuotationService {
     const margin = await RankMarginSetting.findOne({ where: { rank: customer.rank } });
     const marginRate = margin ? Number(margin.defaultMarginRate) : 25;
 
-    const products = await Product.findAll({
-      where: { storeId: input.storeId, isActive: true },
-      order: [['id', 'ASC']],
-    });
+    const products = await loadStoreProducts(input.storeId);
 
     const quotationNo = await this.generateQuotationNo(input.periodStart);
     const transaction = await sequelize.transaction();
@@ -113,10 +132,12 @@ class QuotationService {
             quotationId: quotation.id,
             lineNo: lineNo++,
             productId: product.id,
-            categoryCode: product.categoryLabel,
+            categoryCode: (product as any).category?.categoryCode
+              || (product as any).category?.name
+              || undefined,
             productName: product.name,
-            spec: product.spec,
-            unit: product.unit,
+            spec: (product as any).specOption?.value || undefined,
+            unit: (product as any).unitOption?.value || 'PC',
             purchasePrice,
             supplierId: product.defaultSupplierId,
             rankMarginRate: marginRate,
@@ -190,7 +211,7 @@ class QuotationService {
     const marginRate = margin ? Number(margin.defaultMarginRate) : 25;
     const minMargin = margin ? Number(margin.minMarginRate) : 15;
 
-    const products = await Product.findAll({ where: { storeId, isActive: true } });
+    const products = await loadStoreProducts(storeId);
     const results = [];
 
     for (const product of products) {
@@ -205,8 +226,8 @@ class QuotationService {
       results.push({
         productId: product.id,
         productName: product.name,
-        spec: product.spec,
-        unit: product.unit,
+        spec: (product as any).specOption?.value || undefined,
+        unit: (product as any).unitOption?.value || 'PC',
         note: product.note,
         purchasePrice,
         currentPrice,

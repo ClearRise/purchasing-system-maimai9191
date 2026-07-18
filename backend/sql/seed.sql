@@ -29,8 +29,8 @@ VALUES
   ('FRUIT', '果物', 4, NOW(), NOW())
 ON CONFLICT (category_code) DO NOTHING;
 
--- Product units / specs (規格 belongs to 単位 via related_value)
-INSERT INTO lookup_options (kind, value, related_value, sort_order, is_active, created_at, updated_at)
+-- Product units first
+INSERT INTO lookup_options (kind, value, related_unit_id, sort_order, is_active, created_at, updated_at)
 VALUES
   ('unit', 'g', NULL, 0, true, NOW(), NOW()),
   ('unit', 'kg', NULL, 1, true, NOW(), NOW()),
@@ -38,12 +38,22 @@ VALUES
   ('unit', 'case', NULL, 3, true, NOW(), NOW()),
   ('unit', 'CS', NULL, 4, true, NOW(), NOW()),
   ('unit', 'hon', NULL, 5, true, NOW(), NOW()),
-  ('unit', 'tama', NULL, 6, true, NOW(), NOW()),
-  ('spec', '100g', 'g', 0, true, NOW(), NOW()),
-  ('spec', '200g', 'g', 1, true, NOW(), NOW()),
-  ('spec', '500g', 'g', 2, true, NOW(), NOW()),
-  ('spec', '1 kg', 'kg', 3, true, NOW(), NOW())
+  ('unit', 'tama', NULL, 6, true, NOW(), NOW())
 ON CONFLICT (kind, value) DO NOTHING;
+
+-- Specs linked by related_unit_id
+INSERT INTO lookup_options (kind, value, related_unit_id, sort_order, is_active, created_at, updated_at)
+SELECT 'spec', v.value, u.id, v.sort_order, true, NOW(), NOW()
+FROM (VALUES
+  ('100g', 'g', 0),
+  ('200g', 'g', 1),
+  ('500g', 'g', 2),
+  ('1 kg', 'kg', 3)
+) AS v(value, unit_value, sort_order)
+JOIN lookup_options u ON u.kind = 'unit' AND u.value = v.unit_value
+WHERE NOT EXISTS (
+  SELECT 1 FROM lookup_options s WHERE s.kind = 'spec' AND s.value = v.value
+);
 
 -- Suppliers
 INSERT INTO suppliers (name, is_active, created_at, updated_at)
