@@ -103,7 +103,7 @@ const ProductsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.get(endpoints.masters.products, {
-        params: { limit: 500, storeId: Number(sid) },
+        params: { storeId: Number(sid) },
       });
       setRows(res.data.data.data || []);
     } catch {
@@ -125,7 +125,6 @@ const ProductsPage: React.FC = () => {
         params: {
           search: search.trim() || undefined,
           excludeStoreId: Number(sid),
-          limit: 40,
         },
       });
       setCatalogOptions(res.data.data || []);

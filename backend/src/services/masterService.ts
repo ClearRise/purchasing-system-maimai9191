@@ -11,7 +11,7 @@ import {
   LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
-import { buildPagination, parsePagination, searchCondition } from '@/utils/pagination';
+import { buildPagination, parsePagination, pageWindow, searchCondition } from '@/utils/pagination';
 import { toProductDto, toProductDtoList } from '@/utils/productDto';
 
 class MasterService {
@@ -21,8 +21,7 @@ class MasterService {
     const where = { isActive: true, ...searchCondition(['name', 'shortName'], search) };
     const { count, rows } = await Supplier.findAndCountAll({
       where,
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
@@ -51,8 +50,7 @@ class MasterService {
     const where = { isActive: true, ...searchCondition(['name', 'groupName'], search) };
     const { count, rows } = await Store.findAndCountAll({
       where,
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
@@ -92,8 +90,7 @@ class MasterService {
     const { count, rows } = await Customer.findAndCountAll({
       where,
       include: [{ model: Store, as: 'stores', through: { attributes: [] } }],
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);
@@ -267,8 +264,7 @@ class MasterService {
     const { count, rows } = await Product.findAndCountAll({
       where,
       include: this.productIncludes(storeId),
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
       distinct: true,
     });
@@ -279,7 +275,8 @@ class MasterService {
   async searchProductCatalog(query: Record<string, unknown>) {
     const search = typeof query.search === 'string' ? query.search.trim() : '';
     const excludeStoreId = query.excludeStoreId ? Number(query.excludeStoreId) : undefined;
-    const limit = Math.min(Number(query.limit) || 30, 100);
+    const rawLimit = Number(query.limit);
+    const take = !Number.isNaN(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
 
     const where: Record<string, unknown> = {
       isActive: true,
@@ -306,7 +303,7 @@ class MasterService {
         { model: LookupOption, as: 'specOption', attributes: ['id', 'value', 'kind'] },
       ],
       order: [['name', 'ASC'], ['id', 'ASC']],
-      limit,
+      ...(take ? { limit: take } : {}),
     });
     return toProductDtoList(rows);
   }

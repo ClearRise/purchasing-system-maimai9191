@@ -70,7 +70,7 @@ const SystemUsersPanel: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.get(endpoints.users.list, {
-        params: { page: 1, limit: 100, sortBy: 'id', sortOrder: 'ASC' },
+        params: { page: 1, sortBy: 'id', sortOrder: 'ASC' },
       });
       setRows(res.data.data || []);
     } catch {

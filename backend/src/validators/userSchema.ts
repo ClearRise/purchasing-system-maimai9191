@@ -147,15 +147,13 @@ export const fetchUsersSchema = Joi.object({
   
   limit: Joi.number()
     .integer()
-    .min(1)
-    .max(100)
+    .min(0)
     .optional()
-    .default(10)
+    .default(0)
     .messages({
       'number.base': 'Limit must be a number',
       'number.integer': 'Limit must be an integer',
-      'number.min': 'Limit must be at least 1',
-      'number.max': 'Limit must not exceed 100',
+      'number.min': 'Limit must be 0 (all) or greater',
     }),
   
   search: Joi.string()

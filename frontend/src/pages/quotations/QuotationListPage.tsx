@@ -50,7 +50,6 @@ const QuotationListPage: React.FC = () => {
     try {
       const res = await api.get(endpoints.quotations.list, {
         params: {
-          limit: 100,
           ...(customerFilter ? { customerId: Number(customerFilter) } : {}),
         },
       });
@@ -63,7 +62,7 @@ const QuotationListPage: React.FC = () => {
   }, [customerFilter, enqueueSnackbar]);
 
   useEffect(() => {
-    api.get(endpoints.masters.customers, { params: { limit: 200 } })
+    api.get(endpoints.masters.customers)
       .then((res) => setCustomers(res.data.data.data || []));
   }, []);
 

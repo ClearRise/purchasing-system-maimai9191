@@ -9,7 +9,7 @@ import {
   LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
-import { buildPagination, parsePagination } from '@/utils/pagination';
+import { buildPagination, parsePagination, pageWindow } from '@/utils/pagination';
 
 function productUnit(product: Product): string {
   return ((product as any).unitOption?.value as string) || 'PC';
@@ -421,8 +421,7 @@ class PurchasePriceService {
         { model: Product, as: 'product', attributes: ['id', 'name', 'productCode'] },
         { model: Supplier, as: 'supplier', attributes: ['id', 'name'] },
       ],
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [['changedAt', 'DESC']],
     });
     return buildPagination(rows, count, page, limit);

@@ -46,25 +46,19 @@ class UserService {
   async findAllUsers(options: IUserPaginationOptions): Promise<IPaginatedResponse<User>> {
     const {
       page = 1,
-      limit = 10,
+      limit = 0,
       search,
       isActive,
       sortBy = 'id',
       sortOrder = 'ASC',
     } = options;
 
-    // Calculate offset
-    const offset = (page - 1) * limit;
-
-    // Build where clause
     const whereClause: any = {};
 
-    // Filter by active status if provided
     if (isActive !== undefined) {
       whereClause.isActive = isActive;
     }
 
-    // Search by email, firstName, or lastName
     if (search) {
       whereClause[Op.or] = [
         { email: { [Op.iLike]: `%${search}%` } },
@@ -74,18 +68,16 @@ class UserService {
       ];
     }
 
-    // Fetch users with pagination
     const { count, rows } = await User.findAndCountAll({
       where: whereClause,
       attributes: { exclude: ['password'] },
-      limit,
-      offset,
+      ...(limit > 0 ? { limit, offset: (page - 1) * limit } : {}),
       order: [[sortBy, sortOrder]],
     });
 
-    // Calculate pagination metadata
-    const totalPages = Math.ceil(count / limit);
-    const hasNextPage = page < totalPages;
+    const effectiveLimit = limit > 0 ? limit : count || 1;
+    const totalPages = limit > 0 ? Math.ceil(count / limit) || 1 : 1;
+    const hasNextPage = limit > 0 ? page < totalPages : false;
     const hasPreviousPage = page > 1;
 
     return {
@@ -94,7 +86,7 @@ class UserService {
         currentPage: page,
         totalPages,
         totalCount: count,
-        itemsPerPage: limit,
+        itemsPerPage: effectiveLimit,
         hasNextPage,
         hasPreviousPage,
       },

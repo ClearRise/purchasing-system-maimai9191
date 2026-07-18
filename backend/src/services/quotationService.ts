@@ -12,7 +12,7 @@ import {
   LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
-import { buildPagination, parsePagination } from '@/utils/pagination';
+import { buildPagination, parsePagination, pageWindow } from '@/utils/pagination';
 import purchasePriceService from '@/services/purchasePriceService';
 
 async function loadStoreProducts(storeId: number) {
@@ -65,8 +65,7 @@ class QuotationService {
         { model: Customer, as: 'customer', attributes: ['id', 'name', 'rank'] },
         { model: Store, as: 'store', attributes: ['id', 'name'] },
       ],
-      limit,
-      offset: (page - 1) * limit,
+      ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
     });
     return buildPagination(rows, count, page, limit);

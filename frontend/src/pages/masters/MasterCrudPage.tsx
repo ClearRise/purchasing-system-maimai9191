@@ -50,7 +50,7 @@ function MasterCrudPage<T extends { id: number; [key: string]: unknown }>({
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(endpoint, { params: { limit: 500 } });
+      const res = await api.get(endpoint);
       setRows(res.data.data.data || res.data.data);
     } catch {
       enqueueSnackbar('データの取得に失敗しました', { variant: 'error' });

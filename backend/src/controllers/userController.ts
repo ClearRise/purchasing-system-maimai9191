@@ -57,13 +57,13 @@ export const getAllUsers = async (req: Request, res: Response) => {
     if (page < 1) {
       throw new CustomError('Page number must be greater than 0', 400);
     }
-    if (limit < 1 || limit > 100) {
-      throw new CustomError('Limit must be between 1 and 100', 400);
+    if (limit != null && Number(limit) < 0) {
+      throw new CustomError('Limit must be 0 (all) or a positive number', 400);
     }
 
     const result = await userService.findAllUsers({
       page,
-      limit,
+      limit: limit != null ? Number(limit) : 0,
       search,
       isActive,
       sortBy,

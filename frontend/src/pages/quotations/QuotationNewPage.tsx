@@ -25,7 +25,7 @@ const QuotationNewPage: React.FC = () => {
   });
 
   useEffect(() => {
-    api.get(endpoints.masters.customers, { params: { limit: 200 } }).then((res) => setCustomers(res.data.data.data));
+    api.get(endpoints.masters.customers).then((res) => setCustomers(res.data.data.data));
     api.get(endpoints.masters.lookup).then((res) => setStores(res.data.data.stores));
 
     const next = new Date();

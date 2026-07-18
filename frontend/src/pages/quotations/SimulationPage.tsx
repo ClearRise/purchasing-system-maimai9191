@@ -67,7 +67,7 @@ const SimulationPage: React.FC = () => {
     setTargetYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
 
     Promise.all([
-      api.get(endpoints.masters.customers, { params: { limit: 200 } }),
+      api.get(endpoints.masters.customers),
       api.get(endpoints.masters.lookup),
     ]).then(([cRes, lRes]) => {
       const loadedCustomers: ICustomer[] = cRes.data.data.data || [];
