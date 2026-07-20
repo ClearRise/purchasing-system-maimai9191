@@ -106,7 +106,6 @@ const ProductSettingsPanel: React.FC<ProductSettingsPanelProps> = ({
           title="商品規格"
           values={specsForUnit}
           unit={selectedUnit}
-          allUnits={units}
           onChange={handleSpecsForUnitChange}
           onSave={onSaveSpecs}
           saving={saving}

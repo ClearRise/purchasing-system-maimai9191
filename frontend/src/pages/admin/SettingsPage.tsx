@@ -40,13 +40,16 @@ const SettingsPage: React.FC = () => {
     ]).then(([mRes, sRes, unitRes, specRes]) => {
       setMargins(mRes.data.data);
       setSettings(sRes.data.data);
-      setUnits(unitRes.data.data || []);
+      const unitList: string[] = unitRes.data.data || [];
+      setUnits(unitList);
+      const defaultUnit = unitList[0] || '';
       const rawSpecs = specRes.data.data || [];
       setSpecs(
         Array.isArray(rawSpecs)
-          ? rawSpecs.map((s: string | SpecItem) =>
-            typeof s === 'string' ? { value: s, unit: '' } : { value: s.value, unit: s.unit || '' }
-          )
+          ? rawSpecs.map((s: string | SpecItem) => {
+            if (typeof s === 'string') return { value: s, unit: defaultUnit };
+            return { value: s.value, unit: s.unit || defaultUnit };
+          }).filter((s: SpecItem) => Boolean(s.value))
           : []
       );
     }).finally(() => setLoading(false));
@@ -91,6 +94,10 @@ const SettingsPage: React.FC = () => {
   const saveSpecs = async () => {
     setSavingLookups(true);
     try {
+      // Persist units first so newly added 単位 exist before linking 規格
+      const unitRes = await api.put(endpoints.admin.lookupOptions('unit'), { values: units });
+      setUnits(unitRes.data.data || []);
+
       const res = await api.put(endpoints.admin.lookupOptions('spec'), { items: specs });
       const raw = res.data.data || [];
       setSpecs(

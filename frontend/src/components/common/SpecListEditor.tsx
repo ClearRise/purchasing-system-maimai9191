@@ -6,52 +6,47 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import PanelHeader from 'src/components/common/PanelHeader';
-import { formatSpec, parseSpec } from 'src/utils/specFormat';
 
 interface SpecListEditorProps {
   title?: string;
-  /** Specs for the currently selected unit only (display strings) */
+  /** Specs for the currently selected unit only */
   values: string[];
-  /** Fixed unit this editor manages */
+  /** Unit these specs are linked to */
   unit: string;
-  allUnits: string[];
   onChange: (values: string[]) => void;
   onSave: () => void;
   saving?: boolean;
 }
 
-/** 規格 for one 単位 — amount + linked unit. */
+/** Free-text 規格 list for one selected 単位. */
 const SpecListEditor: React.FC<SpecListEditorProps> = ({
   title = '商品規格',
   values,
   unit,
-  allUnits,
   onChange,
   onSave,
   saving,
 }) => {
-  const [draftAmount, setDraftAmount] = useState('');
+  const [draft, setDraft] = useState('');
 
   useEffect(() => {
-    setDraftAmount('');
+    setDraft('');
   }, [unit]);
 
   const add = () => {
     if (!unit) return;
-    const next = formatSpec(draftAmount, unit);
+    const next = draft.trim();
     if (!next) return;
     if (values.includes(next)) {
-      setDraftAmount('');
+      setDraft('');
       return;
     }
     onChange([...values, next]);
-    setDraftAmount('');
+    setDraft('');
   };
 
-  const updateAt = (index: number, amount: string) => {
-    if (!unit) return;
-    const next = formatSpec(amount, unit);
-    onChange(values.map((v, i) => (i === index ? next : v)));
+  const updateAt = (index: number, value: string) => {
+    onChange(values.map((v, i) => (i === index ? value : v)));
   };
 
   const removeAt = (index: number) => {
@@ -84,50 +79,34 @@ const SpecListEditor: React.FC<SpecListEditorProps> = ({
       ) : (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-            単位「{unit}」に紐づく規格
+            単位「{unit}」に紐づく規格（文字・数字どちらも可）
           </Typography>
           <Stack spacing={1}>
-            {values.map((value, index) => {
-              const parsed = parseSpec(value, allUnits.length ? allUnits : [unit]);
-              return (
-                <Box key={`${value}-${index}`} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                  <TextField
-                    size="small"
-                    label="数量"
-                    value={parsed.amount}
-                    onChange={(e) => updateAt(index, e.target.value)}
-                    sx={{ flex: 1 }}
-                  />
-                  <TextField
-                    size="small"
-                    label="単位"
-                    value={unit}
-                    sx={{ width: 100 }}
-                    disabled
-                  />
-                  <IconButton size="small" color="error" onClick={() => removeAt(index)}>
-                    <DeleteOutlinedIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              );
-            })}
+            {values.map((value, index) => (
+              <Box key={index} sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <TextField
+                  size="small"
+                  label="規格"
+                  value={value}
+                  onChange={(e) => updateAt(index, e.target.value)}
+                  placeholder="例: バラ / 200g / 特大"
+                  fullWidth
+                />
+                <IconButton size="small" color="error" onClick={() => removeAt(index)}>
+                  <DeleteOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
 
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <TextField
                 size="small"
-                label="数量"
-                value={draftAmount}
-                onChange={(e) => setDraftAmount(e.target.value)}
+                label="規格"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } }}
-                placeholder="例: 200"
-                sx={{ flex: 1 }}
-              />
-              <TextField
-                size="small"
-                label="単位"
-                value={unit}
-                sx={{ width: 100 }}
-                disabled
+                placeholder="例: バラ / 200g / 特大"
+                fullWidth
               />
               <Button
                 variant="outlined"
