@@ -1,36 +1,68 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box, Paper, Button, CircularProgress, Chip, IconButton, Tooltip,
-  TextField, MenuItem, Typography, Divider,
+  TextField, MenuItem, Stack, Typography, Divider,
 } from '@mui/material';
 import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
+import MasterFormPanel from 'src/components/common/MasterFormPanel';
 import QuotationDetailPanel from 'src/components/quotations/QuotationDetailPanel';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
-import { Path, QUOTATION_STATUS_LABELS } from 'src/constants/enums';
+import { QUOTATION_STATUS_LABELS } from 'src/constants/enums';
 import { pageTableRootSx, selectorBarSx } from 'src/constants/layout';
 import { usePermissions } from 'src/hooks/usePermissions';
-import type { ICustomer, IQuotation } from 'src/types';
+import type { ICustomer, IQuotation, IStore } from 'src/types';
+
+const defaultYearMonth = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+
+const defaultPeriod = () => {
+  const next = new Date();
+  next.setMonth(next.getMonth() + 1);
+  const start = new Date(next.getFullYear(), next.getMonth(), 1);
+  const end = new Date(next.getFullYear(), next.getMonth() + 1, 0);
+  return {
+    periodStart: start.toISOString().slice(0, 10),
+    periodEnd: end.toISOString().slice(0, 10),
+  };
+};
+
+const emptyCreateForm = () => ({
+  customerId: '',
+  storeId: '',
+  targetYearMonth: defaultYearMonth(),
+  ...defaultPeriod(),
+  note: '',
+});
 
 const QuotationListPage: React.FC = () => {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
   const { canManageQuotations } = usePermissions();
 
   const [rows, setRows] = useState<IQuotation[]>([]);
   const [customers, setCustomers] = useState<ICustomer[]>([]);
+  const [stores, setStores] = useState<IStore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createForm, setCreateForm] = useState(emptyCreateForm);
+  const [saving, setSaving] = useState(false);
   const preferAutoSelect = useRef(true);
 
   const customerFilter = searchParams.get('customerId') || '';
   const selectedId = searchParams.get('id') ? Number(searchParams.get('id')) : null;
+  const createOpen = searchParams.get('new') === '1';
 
-  const setSelection = useCallback((next: { id?: number | null; customerId?: string }) => {
+  const setSelection = useCallback((next: {
+    id?: number | null;
+    customerId?: string;
+    create?: boolean;
+  }) => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       if (next.customerId !== undefined) {
@@ -40,6 +72,10 @@ const QuotationListPage: React.FC = () => {
       if (next.id !== undefined) {
         if (next.id) params.set('id', String(next.id));
         else params.delete('id');
+      }
+      if (next.create !== undefined) {
+        if (next.create) params.set('new', '1');
+        else params.delete('new');
       }
       return params;
     }, { replace: true });
@@ -64,9 +100,20 @@ const QuotationListPage: React.FC = () => {
   useEffect(() => {
     api.get(endpoints.masters.customers)
       .then((res) => setCustomers(res.data.data.data || []));
+    api.get(endpoints.masters.lookup)
+      .then((res) => setStores(res.data.data.stores || []));
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Prefill create form from current filter / defaults when opening
+  useEffect(() => {
+    if (!createOpen) return;
+    setCreateForm((prev) => ({
+      ...emptyCreateForm(),
+      customerId: customerFilter || prev.customerId || '',
+    }));
+  }, [createOpen, customerFilter]);
 
   // Auto-select first quotation when filter changes or deep-link id is missing
   useEffect(() => {
@@ -85,6 +132,14 @@ const QuotationListPage: React.FC = () => {
     }
   }, [loading, rows, selectedId, setSelection]);
 
+  const openCreate = () => {
+    setSelection({ create: true });
+  };
+
+  const closeCreate = () => {
+    setSelection({ create: false });
+  };
+
   const handleCustomerChange = (value: string) => {
     preferAutoSelect.current = true;
     setSelection({ customerId: value, id: null });
@@ -93,6 +148,32 @@ const QuotationListPage: React.FC = () => {
   const handleCloseDetail = () => {
     preferAutoSelect.current = false;
     setSelection({ id: null });
+  };
+
+  const handleCreate = async () => {
+    if (!createForm.customerId || !createForm.storeId) {
+      enqueueSnackbar('得意先と店舗を選択してください', { variant: 'warning' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.post(endpoints.quotations.list, {
+        customerId: Number(createForm.customerId),
+        storeId: Number(createForm.storeId),
+        targetYearMonth: createForm.targetYearMonth,
+        periodStart: createForm.periodStart,
+        periodEnd: createForm.periodEnd,
+        note: createForm.note,
+      });
+      enqueueSnackbar('見積書を作成しました', { variant: 'success' });
+      preferAutoSelect.current = false;
+      setSelection({ create: false, id: res.data.data.id });
+      await fetchData();
+    } catch (err: any) {
+      enqueueSnackbar(err.response?.data?.message || '作成に失敗しました', { variant: 'error' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = useCallback(async (id: number, quotationNo: string) => {
@@ -113,7 +194,8 @@ const QuotationListPage: React.FC = () => {
     [rows, selectedId]
   );
 
-  const showDetailMobile = Boolean(selectedId);
+  const showDetailMobile = Boolean(selectedId) && !createOpen;
+  const showCreateMobile = createOpen;
 
   return (
     <Box sx={pageTableRootSx}>
@@ -125,7 +207,7 @@ const QuotationListPage: React.FC = () => {
             variant="contained"
             size="small"
             startIcon={<AddOutlinedIcon />}
-            onClick={() => navigate(Path.QuotationNew)}
+            onClick={openCreate}
           >
             新規見積
           </Button>
@@ -151,6 +233,7 @@ const QuotationListPage: React.FC = () => {
         <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
           {loading ? '読込中…' : `${rows.length}件`}
           {selectedRow ? ` ／ 選択中: ${selectedRow.quotationNo}` : ''}
+          {createOpen ? ' ／ 新規作成' : ''}
         </Typography>
       </Paper>
 
@@ -168,7 +251,10 @@ const QuotationListPage: React.FC = () => {
           sx={{
             width: { xs: '100%', md: 340 },
             flexShrink: 0,
-            display: { xs: showDetailMobile ? 'none' : 'flex', md: 'flex' },
+            display: {
+              xs: (showDetailMobile || showCreateMobile) ? 'none' : 'flex',
+              md: 'flex',
+            },
             flexDirection: 'column',
             minHeight: { xs: 280, md: 0 },
             overflow: 'hidden',
@@ -195,7 +281,10 @@ const QuotationListPage: React.FC = () => {
                   <Box key={row.id}>
                     {index > 0 && <Divider />}
                     <Box
-                      onClick={() => setSelection({ id: row.id })}
+                      onClick={() => {
+                        preferAutoSelect.current = false;
+                        setSelection({ id: row.id });
+                      }}
                       sx={{
                         px: 1.5,
                         py: 1.25,
@@ -248,13 +337,16 @@ const QuotationListPage: React.FC = () => {
           )}
         </Paper>
 
-        {/* Detail pane */}
+        {/* Detail pane — stays visible while create panel is open */}
         <Paper
           sx={{
             flex: 1,
             minWidth: 0,
             minHeight: 0,
-            display: { xs: showDetailMobile ? 'flex' : 'none', md: 'flex' },
+            display: {
+              xs: showDetailMobile ? 'flex' : 'none',
+              md: 'flex',
+            },
             flexDirection: 'column',
             overflow: 'hidden',
           }}
@@ -275,6 +367,87 @@ const QuotationListPage: React.FC = () => {
             </Box>
           )}
         </Paper>
+
+        {/* Create side panel (master-page style) */}
+        <MasterFormPanel
+          open={createOpen}
+          mode="create"
+          form={createForm}
+          saving={saving}
+          createTitle="新規見積書"
+          createSaveLabel="作成"
+          onClose={closeCreate}
+          onSave={handleCreate}
+          onChange={(name, value) => setCreateForm((prev) => ({ ...prev, [name]: value }))}
+          renderFields={(f) => (
+            <Stack spacing={1.5}>
+              <TextField
+                select
+                label="得意先"
+                value={f.customerId}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, customerId: e.target.value }))}
+                required
+                fullWidth
+                size="small"
+              >
+                {customers.map((c) => (
+                  <MenuItem key={c.id} value={String(c.id)}>
+                    {c.name}（{c.rank}）
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                select
+                label="店舗"
+                value={f.storeId}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, storeId: e.target.value }))}
+                required
+                fullWidth
+                size="small"
+              >
+                {stores.map((s) => (
+                  <MenuItem key={s.id} value={String(s.id)}>{s.name}</MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                label="仕入価格参照月"
+                type="month"
+                value={f.targetYearMonth}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, targetYearMonth: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="期間開始"
+                type="date"
+                value={f.periodStart}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, periodStart: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="期間終了"
+                type="date"
+                value={f.periodEnd}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, periodEnd: e.target.value }))}
+                slotProps={{ inputLabel: { shrink: true } }}
+                fullWidth
+                size="small"
+              />
+              <TextField
+                label="備考"
+                value={f.note}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, note: e.target.value }))}
+                multiline
+                rows={2}
+                fullWidth
+                size="small"
+              />
+            </Stack>
+          )}
+        />
       </Box>
     </Box>
   );

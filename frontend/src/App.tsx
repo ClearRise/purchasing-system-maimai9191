@@ -17,7 +17,6 @@ import CustomersPage from 'src/pages/masters/CustomersPage';
 import PurchasePricesPage from 'src/pages/purchase/PurchasePricesPage';
 import PriceComparePage from 'src/pages/purchase/PriceComparePage';
 import QuotationListPage from 'src/pages/quotations/QuotationListPage';
-import QuotationNewPage from 'src/pages/quotations/QuotationNewPage';
 import QuotationEditPage from 'src/pages/quotations/QuotationEditPage';
 import SimulationPage from 'src/pages/quotations/SimulationPage';
 import SettingsPage from 'src/pages/admin/SettingsPage';
@@ -50,7 +49,7 @@ const AppRoutes: React.FC = () => {
           <Route path={Path.PriceCompare} element={<PriceComparePage />} />
           <Route path="/purchase-prices/history" element={<Navigate to={Path.PriceCompare} replace />} />
           <Route path={Path.Quotations} element={<QuotationListPage />} />
-          <Route path={Path.QuotationNew} element={<QuotationNewPage />} />
+          <Route path="/quotations/new" element={<Navigate to={`${Path.Quotations}?new=1`} replace />} />
           <Route path="/quotations/:id" element={<QuotationEditPage />} />
           <Route path={Path.Simulation} element={<SimulationPage />} />
           <Route path={Path.Settings} element={<SettingsPage />} />

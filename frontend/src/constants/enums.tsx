@@ -8,7 +8,6 @@ export enum Path {
   PurchasePrices = '/purchase-prices',
   PriceCompare = '/purchase-prices/compare',
   Quotations = '/quotations',
-  QuotationNew = '/quotations/new',
   QuotationEdit = '/quotations/:id',
   Simulation = '/quotations/simulation',
   Settings = '/admin/settings',

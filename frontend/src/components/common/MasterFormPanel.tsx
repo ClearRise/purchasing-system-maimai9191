@@ -13,6 +13,10 @@ interface MasterFormPanelProps {
   mode: 'create' | 'edit';
   form: FormValues;
   saving?: boolean;
+  /** Override create-mode title (default: 新規登録) */
+  createTitle?: string;
+  /** Override create-mode save label (default: 登録) */
+  createSaveLabel?: string;
   /** Simple text fields (得意先/発注先/店舗). Ignored if renderFields is set. */
   fields?: MasterField[];
   /** Custom fields (商品・ユーザーなど) */
@@ -28,6 +32,8 @@ const MasterFormPanel: React.FC<MasterFormPanelProps> = ({
   mode,
   form,
   saving,
+  createTitle = '新規登録',
+  createSaveLabel = '登録',
   fields,
   renderFields,
   onClose,
@@ -51,7 +57,7 @@ const MasterFormPanel: React.FC<MasterFormPanelProps> = ({
     >
       <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
         <Typography variant="h4" component="h2">
-          {isEdit ? '編集' : '新規登録'}
+          {isEdit ? '編集' : createTitle}
         </Typography>
         <IconButton size="small" onClick={onClose} aria-label="閉じる">
           <CloseOutlinedIcon fontSize="small" />
@@ -85,7 +91,7 @@ const MasterFormPanel: React.FC<MasterFormPanelProps> = ({
       <Box sx={{ p: 2, display: 'flex', gap: 1, justifyContent: 'flex-end', flexShrink: 0 }}>
         <Button onClick={onClose} color="inherit" disabled={saving}>キャンセル</Button>
         <Button variant="contained" onClick={onSave} disabled={saving}>
-          {saving ? '保存中...' : isEdit ? '更新' : '登録'}
+          {saving ? '保存中...' : isEdit ? '更新' : createSaveLabel}
         </Button>
       </Box>
     </Paper>
