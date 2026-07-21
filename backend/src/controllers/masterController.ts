@@ -57,6 +57,12 @@ export const listCategories = handle(async (_req, res) => {
   res.json({ success: true, data });
 });
 
+export const replaceCategories = handle(async (req, res) => {
+  const values = Array.isArray(req.body?.values) ? req.body.values : [];
+  const data = await masterService.replaceCategories(values);
+  res.json({ success: true, message: 'カテゴリを更新しました', data });
+});
+
 export const listCustomers = handle(async (req, res) => {
   const data = await masterService.listCustomers(req.query);
   res.json({ success: true, data });

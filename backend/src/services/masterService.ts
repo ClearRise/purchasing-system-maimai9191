@@ -78,6 +78,74 @@ class MasterService {
     return Category.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
   }
 
+  private async uniqueCategoryCode(name: string): Promise<string> {
+    const base = name
+      .replace(/[^\w\u3040-\u30ff\u4e00-\u9faf]+/g, '')
+      .slice(0, 12)
+      .toUpperCase() || 'CAT';
+    let code = base.slice(0, 20);
+    let n = 0;
+    while (await Category.findOne({ where: { categoryCode: code } })) {
+      n += 1;
+      const suffix = String(n);
+      code = `${base.slice(0, Math.max(1, 20 - suffix.length))}${suffix}`;
+    }
+    return code;
+  }
+
+  /** Replace full category list (order = array order). Renames keep IDs so product FKs stay valid. */
+  async replaceCategories(names: string[]) {
+    const unique: string[] = [];
+    for (const raw of names) {
+      const v = String(raw || '').trim().slice(0, 50);
+      if (!v || unique.some((u) => u.toLowerCase() === v.toLowerCase())) continue;
+      unique.push(v);
+    }
+
+    const existing = await Category.findAll({ order: [['sortOrder', 'ASC'], ['id', 'ASC']] });
+
+    // Same length → in-place rename / reorder by index (preserves category ids)
+    if (existing.length === unique.length && existing.length > 0) {
+      for (let i = 0; i < unique.length; i++) {
+        const row = existing[i];
+        await row.update({ name: unique[i], sortOrder: i });
+      }
+      return this.listCategories();
+    }
+
+    const byLower = new Map(existing.map((c) => [c.name.toLowerCase(), c]));
+    const keep = new Set(unique.map((n) => n.toLowerCase()));
+
+    for (const row of existing) {
+      if (!keep.has(row.name.toLowerCase())) {
+        await Product.update({ categoryId: null }, { where: { categoryId: row.id } });
+        await row.destroy();
+      }
+    }
+
+    for (let i = 0; i < unique.length; i++) {
+      const name = unique[i];
+      const found = byLower.get(name.toLowerCase());
+      if (found && keep.has(name.toLowerCase())) {
+        await found.update({ name, sortOrder: i });
+      } else if (!byLower.has(name.toLowerCase())) {
+        await Category.create({
+          name,
+          categoryCode: await this.uniqueCategoryCode(name),
+          sortOrder: i,
+        });
+      }
+    }
+
+    const refreshed = await Category.findAll();
+    for (let i = 0; i < unique.length; i++) {
+      const row = refreshed.find((c) => c.name.toLowerCase() === unique[i].toLowerCase());
+      if (row) await row.update({ name: unique[i], sortOrder: i });
+    }
+
+    return this.listCategories();
+  }
+
   async createCategory(data: Partial<Category>) {
     return Category.create(data as Category);
   }

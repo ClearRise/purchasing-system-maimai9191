@@ -8,9 +8,11 @@ import AddOutlinedIcon from '@mui/icons-material/AddOutlined';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
+import CategoryOutlinedIcon from '@mui/icons-material/CategoryOutlined';
 import { useSnackbar } from 'notistack';
 import PageHeader from 'src/components/common/PageHeader';
 import MasterFormPanel from 'src/components/common/MasterFormPanel';
+import CategoryManagerDialog from 'src/components/masters/CategoryManagerDialog';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import { usePermissions } from 'src/hooks/usePermissions';
@@ -57,6 +59,7 @@ const ProductsPage: React.FC = () => {
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selection, setSelection] = useState<GridRowSelectionModel>({ type: 'include', ids: new Set() });
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
 
   const selectedIds = useMemo(
     () => getSelectedRowIds(selection, rows.map((r) => r.id)),
@@ -343,6 +346,14 @@ const ProductsPage: React.FC = () => {
           <>
             <Button
               variant="outlined"
+              size="small"
+              startIcon={<CategoryOutlinedIcon />}
+              onClick={() => setCategoryDialogOpen(true)}
+            >
+              カテゴリ
+            </Button>
+            <Button
+              variant="outlined"
               color="error"
               size="small"
               startIcon={<DeleteOutlinedIcon />}
@@ -362,6 +373,21 @@ const ProductsPage: React.FC = () => {
             </Button>
           </>
         )}
+      />
+
+      <CategoryManagerDialog
+        open={categoryDialogOpen}
+        categories={categories}
+        onClose={() => setCategoryDialogOpen(false)}
+        onSaved={(next) => {
+          setCategories(next);
+          setForm((prev) => {
+            if (!prev.categoryId) return prev;
+            const still = next.some((c) => String(c.id) === prev.categoryId);
+            return still ? prev : { ...prev, categoryId: '' };
+          });
+          fetchProducts(storeId);
+        }}
       />
 
       <Box
@@ -653,20 +679,37 @@ const ProductsPage: React.FC = () => {
                 >
                   {specOptions.map((s) => <MenuItem key={s} value={s}>{s}</MenuItem>)}
                 </TextField>
-                <TextField
-                  select
-                  label="カテゴリ"
-                  value={f.categoryId}
-                  onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
-                  fullWidth
-                  size="small"
-                  disabled={fieldsLocked}
-                >
-                  <MenuItem value="">（なし）</MenuItem>
-                  {categories.map((c) => (
-                    <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>
-                  ))}
-                </TextField>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                  <TextField
+                    select
+                    label="カテゴリ"
+                    value={f.categoryId}
+                    onChange={(e) => setForm((prev) => ({ ...prev, categoryId: e.target.value }))}
+                    fullWidth
+                    size="small"
+                    disabled={fieldsLocked}
+                    helperText={
+                      !categories.length && !fieldsLocked
+                        ? 'カテゴリがありません。「カテゴリ」から登録してください'
+                        : undefined
+                    }
+                  >
+                    <MenuItem value="">（なし）</MenuItem>
+                    {categories.map((c) => (
+                      <MenuItem key={c.id} value={String(c.id)}>{c.name}</MenuItem>
+                    ))}
+                  </TextField>
+                  {canManageMasters && !fieldsLocked && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setCategoryDialogOpen(true)}
+                      sx={{ mt: 0.5, flexShrink: 0 }}
+                      title="カテゴリを管理"
+                    >
+                      <CategoryOutlinedIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
                 <TextField
                   label="備考"
                   value={f.note}
