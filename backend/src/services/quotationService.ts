@@ -5,6 +5,7 @@ import {
   QuotationLine,
   Store,
   Product,
+  ProductStore,
   RankMarginSetting,
   Category,
   LookupOption,
@@ -245,6 +246,18 @@ class QuotationService {
           },
           { transaction }
         );
+
+        // Keep 取扱商品 in sync when a product is added to a quotation.
+        const linked = await ProductStore.findOne({
+          where: { storeId: quotation.storeId, productId: product.id },
+          transaction,
+        });
+        if (!linked) {
+          await ProductStore.create(
+            { storeId: quotation.storeId, productId: product.id },
+            { transaction }
+          );
+        }
       }
 
       await transaction.commit();

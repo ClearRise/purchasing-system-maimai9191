@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Autocomplete, Box, Button, Chip, CircularProgress, IconButton, Paper, Table, TableBody,
-  TableCell, TableHead, TableRow, TextField, Typography,
+  TableCell, TableFooter, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
 import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
@@ -108,13 +108,39 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
     setLines((prev) => prev.map((l) => (l.id === lineId ? { ...l, [field]: value } : l)));
   };
 
-  const addProduct = (product: CatalogOption) => {
-    if (linkedIds.has(product.id)) return;
-    setLines((prev) => [
-      ...prev,
+  const persistLines = useCallback(async (nextLines: IQuotationLine[]) => {
+    setSaving(true);
+    try {
+      await api.put(endpoints.quotations.lines(quotationId), {
+        lines: nextLines.map((l) => {
+          const isNew = Boolean(l.isNew || l.id < 0);
+          return {
+            ...(isNew ? {} : { id: l.id }),
+            productId: l.productId,
+            ...((!isNew || l.finalQuotePrice > 0) ? { finalQuotePrice: l.finalQuotePrice } : {}),
+            isVisible: l.isVisible,
+            note: l.note,
+          };
+        }),
+      });
+      await fetchData();
+      onUpdated?.();
+      return true;
+    } catch (err: any) {
+      enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [quotationId, fetchData, onUpdated, enqueueSnackbar]);
+
+  const addProduct = async (product: CatalogOption) => {
+    if (linkedIds.has(product.id) || saving) return;
+    const nextLines: IQuotationLine[] = [
+      ...lines,
       {
         id: tempIdSeq--,
-        lineNo: prev.length + 1,
+        lineNo: lines.length + 1,
         productId: product.id,
         productName: product.name,
         spec: product.spec || undefined,
@@ -127,7 +153,15 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
         note: '',
         isNew: true,
       },
-    ]);
+    ];
+    setLines(nextLines);
+    const ok = await persistLines(nextLines);
+    if (ok) {
+      enqueueSnackbar('商品を追加し、取扱商品にも登録しました', { variant: 'success' });
+    } else {
+      // Roll back optimistic row if persist failed
+      setLines(lines);
+    }
   };
 
   const removeLine = (lineId: number) => {
@@ -135,29 +169,8 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
   };
 
   const handleSave = async () => {
-    setSaving(true);
-    try {
-      await api.put(endpoints.quotations.lines(quotationId), {
-        lines: lines.map((l) => {
-          const isNew = Boolean(l.isNew || l.id < 0);
-          return {
-            ...(isNew ? {} : { id: l.id }),
-            productId: l.productId,
-            // New lines: omit 0 so the server fills auto quote from purchase price.
-            ...((!isNew || l.finalQuotePrice > 0) ? { finalQuotePrice: l.finalQuotePrice } : {}),
-            isVisible: l.isVisible,
-            note: l.note,
-          };
-        }),
-      });
-      enqueueSnackbar('見積明細を保存しました', { variant: 'success' });
-      await fetchData();
-      onUpdated?.();
-    } catch (err: any) {
-      enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
-    } finally {
-      setSaving(false);
-    }
+    const ok = await persistLines(lines);
+    if (ok) enqueueSnackbar('見積明細を保存しました', { variant: 'success' });
   };
 
   const handleSend = async () => {
@@ -285,6 +298,7 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
             onChange={(_e, value) => {
               if (value) addProduct(value);
             }}
+            disabled={saving}
             renderOption={(props, option) => (
               <li {...props} key={option.id}>
                 <Box>
@@ -382,41 +396,45 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
               </TableRow>
             )}
           </TableBody>
+          <TableFooter>
+            <TableRow
+              sx={{
+                '& td': {
+                  position: 'sticky',
+                  bottom: 0,
+                  zIndex: 2,
+                  bgcolor: 'grey.100',
+                  // Match body row cell typography (MUI footer defaults differ)
+                  color: 'text.primary',
+                  fontSize: 'inherit',
+                  fontWeight: 'inherit',
+                  lineHeight: 'inherit',
+                },
+              }}
+            >
+              <TableCell />
+              <TableCell>
+                {targetMonthLabel ? `${targetMonthLabel}分 合計` : '合計'}
+                {`（${totals.count}件）`}
+              </TableCell>
+              <TableCell />
+              <TableCell />
+              <TableCell align="right">
+                ¥{Math.round(totals.purchase).toLocaleString()}
+              </TableCell>
+              <TableCell align="right">—</TableCell>
+              <TableCell align="right">
+                ¥{Math.round(totals.autoQuote).toLocaleString()}
+              </TableCell>
+              <TableCell align="right">
+                ¥{Math.round(totals.finalQuote).toLocaleString()}
+              </TableCell>
+              <TableCell />
+              {editable && <TableCell padding="checkbox" />}
+            </TableRow>
+          </TableFooter>
         </Table>
       </Paper>
-
-      <Box
-        sx={{
-          px: 2,
-          py: 1.25,
-          borderTop: 1,
-          borderColor: 'divider',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 2,
-          flexWrap: 'wrap',
-          flexShrink: 0,
-          bgcolor: 'grey.50',
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          {targetMonthLabel ? `${targetMonthLabel}分` : '対象月'}
-          {' · '}
-          明細 {totals.count}件
-        </Typography>
-        <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 2, flexWrap: 'wrap' }}>
-          <Typography variant="caption" color="text.secondary">
-            仕入合計 ¥{Math.round(totals.purchase).toLocaleString()}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            自動見積合計 ¥{Math.round(totals.autoQuote).toLocaleString()}
-          </Typography>
-          <Typography variant="subtitle2" component="div" sx={{ fontWeight: 700 }}>
-            正式見積合計 ¥{Math.round(totals.finalQuote).toLocaleString()}
-          </Typography>
-        </Box>
-      </Box>
 
       <QuotationPdfPreviewDialog
         open={pdfPreviewOpen}

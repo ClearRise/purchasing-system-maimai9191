@@ -389,7 +389,6 @@ const QuotationListPage: React.FC = () => {
                 required
                 fullWidth
                 size="small"
-                helperText="取扱商品が明細に自動登録されます。作成後に商品の追加・削除もできます"
               >
                 {stores.map((s) => (
                   <MenuItem key={s.id} value={String(s.id)}>
