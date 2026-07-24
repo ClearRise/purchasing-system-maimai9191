@@ -2,7 +2,7 @@ import { Op } from 'sequelize';
 import {
   Quotation,
   QuotationLine,
-  Customer,
+  Store,
   Product,
   PurchasePrice,
   Supplier,
@@ -16,7 +16,7 @@ class DashboardService {
       Quotation.count({ where: { status: 'draft' } }),
       Quotation.count({ where: { status: 'sent' } }),
       Product.count({ where: { isActive: true } }),
-      Customer.count({ where: { isActive: true } }),
+      Store.count({ where: { isActive: true } }),
     ]);
 
     return { quotationDraft, quotationSent, productCount, customerCount };
@@ -51,14 +51,14 @@ class DashboardService {
   }
 
   async getRiskCustomers() {
-    const customers = await Customer.findAll({ where: { isActive: true } });
+    const stores = await Store.findAll({ where: { isActive: true } });
     const margins = await RankMarginSetting.findAll();
     const marginMap = Object.fromEntries(margins.map((m) => [m.rank, Number(m.minMarginRate)]));
 
     const risks = [];
-    for (const customer of customers) {
+    for (const store of stores) {
       const latest = await Quotation.findOne({
-        where: { customerId: customer.id },
+        where: { storeId: store.id },
         order: [['createdAt', 'DESC']],
       });
       if (!latest) continue;
@@ -75,12 +75,12 @@ class DashboardService {
           return acc + (p > 0 ? ((f - p) / p) * 100 : 0);
         }, 0) / lines.length;
 
-      const minRequired = marginMap[customer.rank] || 15;
+      const minRequired = marginMap[store.rank] || 15;
       if (avgMargin < minRequired) {
         risks.push({
-          customerId: customer.id,
-          customerName: customer.name,
-          rank: customer.rank,
+          customerId: store.id,
+          customerName: store.name,
+          rank: store.rank,
           avgMarginRate: Math.round(avgMargin * 100) / 100,
           minRequired,
         });

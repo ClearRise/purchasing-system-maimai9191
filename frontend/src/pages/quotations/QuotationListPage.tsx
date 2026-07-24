@@ -15,7 +15,7 @@ import endpoints from 'src/libs/endpoints';
 import { QUOTATION_STATUS_LABELS } from 'src/constants/enums';
 import { pageTableRootSx, selectorBarSx } from 'src/constants/layout';
 import { usePermissions } from 'src/hooks/usePermissions';
-import type { ICustomer, IQuotation, IStore } from 'src/types';
+import type { IQuotation, IStore } from 'src/types';
 
 const defaultYearMonth = () => {
   const d = new Date();
@@ -34,7 +34,6 @@ const defaultPeriod = () => {
 };
 
 const emptyCreateForm = () => ({
-  customerId: '',
   storeId: '',
   targetYearMonth: defaultYearMonth(),
   ...defaultPeriod(),
@@ -47,27 +46,26 @@ const QuotationListPage: React.FC = () => {
   const { canManageQuotations } = usePermissions();
 
   const [rows, setRows] = useState<IQuotation[]>([]);
-  const [customers, setCustomers] = useState<ICustomer[]>([]);
   const [stores, setStores] = useState<IStore[]>([]);
   const [loading, setLoading] = useState(true);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
   const [saving, setSaving] = useState(false);
   const preferAutoSelect = useRef(true);
 
-  const customerFilter = searchParams.get('customerId') || '';
+  const storeFilter = searchParams.get('storeId') || '';
   const selectedId = searchParams.get('id') ? Number(searchParams.get('id')) : null;
   const createOpen = searchParams.get('new') === '1';
 
   const setSelection = useCallback((next: {
     id?: number | null;
-    customerId?: string;
+    storeId?: string;
     create?: boolean;
   }) => {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
-      if (next.customerId !== undefined) {
-        if (next.customerId) params.set('customerId', next.customerId);
-        else params.delete('customerId');
+      if (next.storeId !== undefined) {
+        if (next.storeId) params.set('storeId', next.storeId);
+        else params.delete('storeId');
       }
       if (next.id !== undefined) {
         if (next.id) params.set('id', String(next.id));
@@ -86,7 +84,7 @@ const QuotationListPage: React.FC = () => {
     try {
       const res = await api.get(endpoints.quotations.list, {
         params: {
-          ...(customerFilter ? { customerId: Number(customerFilter) } : {}),
+          ...(storeFilter ? { storeId: Number(storeFilter) } : {}),
         },
       });
       setRows(res.data.data.data || []);
@@ -95,27 +93,23 @@ const QuotationListPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [customerFilter, enqueueSnackbar]);
+  }, [storeFilter, enqueueSnackbar]);
 
   useEffect(() => {
-    api.get(endpoints.masters.customers)
-      .then((res) => setCustomers(res.data.data.data || []));
-    api.get(endpoints.masters.lookup)
-      .then((res) => setStores(res.data.data.stores || []));
+    api.get(endpoints.masters.stores)
+      .then((res) => setStores(res.data.data.data || res.data.data || []));
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Prefill create form from current filter / defaults when opening
   useEffect(() => {
     if (!createOpen) return;
     setCreateForm((prev) => ({
       ...emptyCreateForm(),
-      customerId: customerFilter || prev.customerId || '',
+      storeId: storeFilter || prev.storeId || '',
     }));
-  }, [createOpen, customerFilter]);
+  }, [createOpen, storeFilter]);
 
-  // Auto-select first quotation when filter changes or deep-link id is missing
   useEffect(() => {
     if (loading) return;
     const stillThere = selectedId != null && rows.some((r) => r.id === selectedId);
@@ -140,9 +134,9 @@ const QuotationListPage: React.FC = () => {
     setSelection({ create: false });
   };
 
-  const handleCustomerChange = (value: string) => {
+  const handleStoreChange = (value: string) => {
     preferAutoSelect.current = true;
-    setSelection({ customerId: value, id: null });
+    setSelection({ storeId: value, id: null });
   };
 
   const handleCloseDetail = () => {
@@ -151,23 +145,31 @@ const QuotationListPage: React.FC = () => {
   };
 
   const handleCreate = async () => {
-    if (!createForm.customerId || !createForm.storeId) {
-      enqueueSnackbar('得意先と店舗を選択してください', { variant: 'warning' });
+    if (!createForm.storeId) {
+      enqueueSnackbar('得意先を選択してください', { variant: 'warning' });
       return;
     }
     setSaving(true);
     try {
       const res = await api.post(endpoints.quotations.list, {
-        customerId: Number(createForm.customerId),
         storeId: Number(createForm.storeId),
         targetYearMonth: createForm.targetYearMonth,
         periodStart: createForm.periodStart,
         periodEnd: createForm.periodEnd,
         note: createForm.note,
       });
-      enqueueSnackbar('見積書を作成しました', { variant: 'success' });
+      const created = res.data.data;
+      const lineCount = Array.isArray(created?.lines) ? created.lines.length : 0;
+      if (lineCount === 0) {
+        enqueueSnackbar(
+          '見積書を作成しましたが明細が空です。得意先マスタで取扱商品を登録してください。',
+          { variant: 'warning' }
+        );
+      } else {
+        enqueueSnackbar(`見積書を作成しました（明細 ${lineCount}件）`, { variant: 'success' });
+      }
       preferAutoSelect.current = false;
-      setSelection({ create: false, id: res.data.data.id });
+      setSelection({ create: false, id: created.id });
       await fetchData();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '作成に失敗しました', { variant: 'error' });
@@ -219,14 +221,14 @@ const QuotationListPage: React.FC = () => {
           select
           size="small"
           label="得意先"
-          value={customerFilter}
-          onChange={(e) => handleCustomerChange(e.target.value)}
+          value={storeFilter}
+          onChange={(e) => handleStoreChange(e.target.value)}
           sx={{ width: { xs: '100%', sm: 280 } }}
         >
           <MenuItem value="">すべての得意先</MenuItem>
-          {customers.map((c) => (
-            <MenuItem key={c.id} value={String(c.id)}>
-              {c.name}（{c.rank}）
+          {stores.map((s) => (
+            <MenuItem key={s.id} value={String(s.id)}>
+              {s.name}{s.rank ? `（${s.rank}）` : ''}
             </MenuItem>
           ))}
         </TextField>
@@ -246,7 +248,6 @@ const QuotationListPage: React.FC = () => {
           flexDirection: { xs: 'column', md: 'row' },
         }}
       >
-        {/* List pane */}
         <Paper
           sx={{
             width: { xs: '100%', md: 340 },
@@ -324,7 +325,8 @@ const QuotationListPage: React.FC = () => {
                         )}
                       </Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
-                        {row.customer?.name || '—'} / {row.store?.name || '—'}
+                        {row.store?.name || '—'}
+                        {row.store?.rank ? `（${row.store.rank}）` : ''}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {row.periodStart} 〜 {row.periodEnd}
@@ -337,7 +339,6 @@ const QuotationListPage: React.FC = () => {
           )}
         </Paper>
 
-        {/* Detail pane — stays visible while create panel is open */}
         <Paper
           sx={{
             flex: 1,
@@ -368,7 +369,6 @@ const QuotationListPage: React.FC = () => {
           )}
         </Paper>
 
-        {/* Create side panel (master-page style) */}
         <MasterFormPanel
           open={createOpen}
           mode="create"
@@ -384,29 +384,17 @@ const QuotationListPage: React.FC = () => {
               <TextField
                 select
                 label="得意先"
-                value={f.customerId}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, customerId: e.target.value }))}
-                required
-                fullWidth
-                size="small"
-              >
-                {customers.map((c) => (
-                  <MenuItem key={c.id} value={String(c.id)}>
-                    {c.name}（{c.rank}）
-                  </MenuItem>
-                ))}
-              </TextField>
-              <TextField
-                select
-                label="店舗"
                 value={f.storeId}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, storeId: e.target.value }))}
                 required
                 fullWidth
                 size="small"
+                helperText="その得意先の取扱商品が明細に自動登録されます"
               >
                 {stores.map((s) => (
-                  <MenuItem key={s.id} value={String(s.id)}>{s.name}</MenuItem>
+                  <MenuItem key={s.id} value={String(s.id)}>
+                    {s.name}{s.rank ? `（${s.rank}）` : ''}
+                  </MenuItem>
                 ))}
               </TextField>
               <TextField

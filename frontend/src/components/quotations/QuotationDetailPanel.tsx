@@ -153,10 +153,8 @@ const QuotationDetailPanel: React.FC<QuotationDetailPanelProps> = ({
             />
           </Box>
           <Typography variant="body2" color="text.secondary">
-            {quotation.customer?.name}
-            {quotation.customer?.rank ? `（${quotation.customer.rank}）` : ''}
-            {' / '}
             {quotation.store?.name}
+            {quotation.store?.rank ? `（${quotation.store.rank}）` : ''}
             {' / '}
             {quotation.periodStart} 〜 {quotation.periodEnd}
           </Typography>

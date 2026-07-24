@@ -38,7 +38,7 @@ const PurchasePricesPage: React.FC = () => {
       .then((res) => {
         setStores(res.data.data.stores || []);
       })
-      .catch(() => enqueueSnackbar('店舗の取得に失敗しました', { variant: 'error' }))
+      .catch(() => enqueueSnackbar('得意先の取得に失敗しました', { variant: 'error' }))
       .finally(() => setLoadingStores(false));
   }, [enqueueSnackbar]);
 
@@ -82,9 +82,9 @@ const PurchasePricesPage: React.FC = () => {
   const selectedStore = storeId === ALL_STORES
     ? null
     : stores.find((s) => String(s.id) === storeId);
-  const storeLabel = storeId === ALL_STORES ? '全店舗' : (selectedStore?.name || '');
+  const storeLabel = storeId === ALL_STORES ? '全得意先' : (selectedStore?.name || '');
   const storeSearchQ = storeSearch.trim().toLowerCase();
-  const showAllInSearch = !storeSearchQ || '全店舗'.includes(storeSearch.trim()) || 'すべて'.includes(storeSearchQ);
+  const showAllInSearch = !storeSearchQ || '全得意先'.includes(storeSearch.trim()) || 'すべて'.includes(storeSearchQ);
 
 
   const handleCellChange = (productId: number, colKey: string, value: string) => {
@@ -126,7 +126,7 @@ const PurchasePricesPage: React.FC = () => {
     <Box sx={pageTableRootSx}>
       <PageHeader
         title="月別仕入価格入力"
-        subtitle="店舗で商品を絞り込み、発注先×年月で価格を入力（価格は店舗共通）"
+        subtitle="得意先で商品を絞り込み、発注先×年月で価格を入力（価格は得意先共通）"
         action={canManagePrices && (
           <Button
             variant="contained"
@@ -161,12 +161,12 @@ const PurchasePricesPage: React.FC = () => {
         >
           <Box sx={{ px: 1.5, pt: 1.5, pb: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
-              店舗一覧
+              得意先一覧
             </Typography>
             <TextField
               size="small"
               fullWidth
-              placeholder="店舗を検索"
+              placeholder="得意先を検索"
               value={storeSearch}
               onChange={(e) => setStoreSearch(e.target.value)}
               slotProps={{
@@ -188,7 +188,7 @@ const PurchasePricesPage: React.FC = () => {
           ) : !showAllInSearch && filteredStores.length === 0 ? (
             <Box sx={{ p: 2.5, textAlign: 'center' }}>
               <Typography variant="body2" color="text.secondary">
-                該当する店舗がありません
+                該当する得意先がありません
               </Typography>
             </Box>
           ) : (
@@ -215,7 +215,7 @@ const PurchasePricesPage: React.FC = () => {
                     noWrap
                     sx={{ fontWeight: storeId === ALL_STORES ? 500 : 400, color: 'inherit' }}
                   >
-                    全店舗
+                    全得意先
                   </Typography>
                   <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block' }}>
                     すべての商品を表示
@@ -302,7 +302,7 @@ const PurchasePricesPage: React.FC = () => {
               emptyMessage={
                 storeId === ALL_STORES
                   ? '商品がありません。商品マスタを登録してください。'
-                  : 'この店舗に商品がありません。商品マスタを登録してください。'
+                  : 'この得意先に商品がありません。商品マスタを登録してください。'
               }
             />
           </Box>

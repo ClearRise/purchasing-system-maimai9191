@@ -1,7 +1,6 @@
 import { createLogger, format, transports, Logger } from 'winston';
 import fs from 'fs';
 import path from 'path';
-import { NODE_ENV } from '@/config/constants';
 
 const logsDir = path.join(__dirname, '../logs');
 try {
@@ -55,7 +54,7 @@ const logger: Logger = createLogger({
   transports: [
     // Always log to console so PM2 / nginx debugging can see startup failures
     new transports.Console({
-      level: NODE_ENV === 'development' ? 'debug' : 'info',
+      level: 'info',
     }),
 
     new transports.File({

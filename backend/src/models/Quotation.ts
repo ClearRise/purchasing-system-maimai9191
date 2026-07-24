@@ -5,7 +5,6 @@ import { QuotationStatus } from '@/config/constants';
 export interface IQuotationAttributes {
   id: number;
   quotationNo: string;
-  customerId: number;
   storeId: number;
   periodStart: Date;
   periodEnd: Date;
@@ -23,7 +22,6 @@ export type IQuotationCreation = Optional<IQuotationAttributes, 'id' | 'status' 
 class Quotation extends Model<IQuotationAttributes, IQuotationCreation> implements IQuotationAttributes {
   public id!: number;
   public quotationNo!: string;
-  public customerId!: number;
   public storeId!: number;
   public periodStart!: Date;
   public periodEnd!: Date;
@@ -40,7 +38,6 @@ Quotation.init(
   {
     id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
     quotationNo: { type: DataTypes.STRING(30), allowNull: false },
-    customerId: { type: DataTypes.INTEGER, allowNull: false },
     storeId: { type: DataTypes.INTEGER, allowNull: false },
     periodStart: { type: DataTypes.DATEONLY, allowNull: false },
     periodEnd: { type: DataTypes.DATEONLY, allowNull: false },

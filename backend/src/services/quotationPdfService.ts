@@ -1,6 +1,6 @@
 import pdfmake from 'pdfmake';
 import type { Content, TableCell, TDocumentDefinitions } from 'pdfmake/interfaces';
-import { Quotation, QuotationLine, Customer, Store } from '@/models';
+import { Quotation, QuotationLine, Store } from '@/models';
 import settingsService from '@/services/settingsService';
 import CustomError from '@/utils/customError';
 import { getPdfFonts } from '@/utils/pdfFonts';
@@ -82,10 +82,7 @@ function initPdfMake() {
 class QuotationPdfService {
   async buildPdfData(quotationId: number) {
     const quotation = await Quotation.findByPk(quotationId, {
-      include: [
-        { model: Customer, as: 'customer' },
-        { model: Store, as: 'store' },
-      ],
+      include: [{ model: Store, as: 'store' }],
     });
     if (!quotation) throw new CustomError('見積書が見つかりません', 404);
 
@@ -107,7 +104,6 @@ class QuotationPdfService {
 
     return {
       quotation,
-      customer: (quotation as any).customer as Customer,
       store: (quotation as any).store as Store,
       lines: pdfLines,
       settings,
@@ -121,7 +117,6 @@ class QuotationPdfService {
     const companyName = data.settings.company_name || '有限会社かにわ';
     const companyTel = data.settings.company_tel || '';
     const companyFax = data.settings.company_fax || '';
-    const customerName = data.customer?.name || '';
     const storeName = data.store?.name || '';
     const seal = buildSealContent(data.settings.company_seal, companyName);
 
@@ -214,7 +209,7 @@ class QuotationPdfService {
               width: '*',
               stack: [
                 {
-                  text: `${customerName}　御中`,
+                  text: `${storeName}　御中`,
                   style: 'addressee',
                   margin: [0, 0, 0, 14],
                 },

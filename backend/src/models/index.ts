@@ -1,8 +1,6 @@
 import User from './User';
 import Supplier from './Supplier';
 import Store from './Store';
-import Customer from './Customer';
-import CustomerStore from './CustomerStore';
 import Category from './Category';
 import Product from './Product';
 import ProductStore from './ProductStore';
@@ -17,9 +15,8 @@ import LookupOption from './LookupOption';
 
 // User associations
 Store.belongsTo(User, { foreignKey: 'salesUserId', as: 'salesUser' });
-Customer.belongsTo(User, { foreignKey: 'salesUserId', as: 'salesUser' });
 
-// Product-Store M:N
+// Product-Store (得意先) M:N — which products each 得意先 uses
 Product.belongsToMany(Store, {
   through: ProductStore,
   foreignKey: 'productId',
@@ -70,20 +67,6 @@ Supplier.belongsToMany(Product, {
   as: 'products',
 });
 
-// Customer-Store M:N
-Customer.belongsToMany(Store, {
-  through: CustomerStore,
-  foreignKey: 'customerId',
-  otherKey: 'storeId',
-  as: 'stores',
-});
-Store.belongsToMany(Customer, {
-  through: CustomerStore,
-  foreignKey: 'storeId',
-  otherKey: 'customerId',
-  as: 'customers',
-});
-
 // Purchase prices
 PurchasePrice.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 PurchasePrice.belongsTo(Supplier, { foreignKey: 'supplierId', as: 'supplier' });
@@ -94,8 +77,7 @@ PurchasePriceLog.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 PurchasePriceLog.belongsTo(Supplier, { foreignKey: 'supplierId', as: 'supplier' });
 PurchasePriceLog.belongsTo(User, { foreignKey: 'changedBy', as: 'changer' });
 
-// Quotations
-Quotation.belongsTo(Customer, { foreignKey: 'customerId', as: 'customer' });
+// Quotations — storeId is the 得意先
 Quotation.belongsTo(Store, { foreignKey: 'storeId', as: 'store' });
 Quotation.belongsTo(User, { foreignKey: 'createdBy', as: 'creator' });
 Quotation.hasMany(QuotationLine, { foreignKey: 'quotationId', as: 'lines' });
@@ -107,8 +89,6 @@ export {
   User,
   Supplier,
   Store,
-  Customer,
-  CustomerStore,
   Category,
   Product,
   ProductStore,
@@ -126,8 +106,6 @@ export default {
   User,
   Supplier,
   Store,
-  Customer,
-  CustomerStore,
   Category,
   Product,
   ProductStore,

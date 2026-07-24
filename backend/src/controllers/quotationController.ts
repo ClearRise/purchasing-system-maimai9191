@@ -60,8 +60,8 @@ export const deleteQuotation = async (req: Request, res: Response) => {
 
 export const simulateQuotation = async (req: Request, res: Response) => {
   try {
-    const { customerId, storeId, targetYearMonth, adjustmentPct } = req.body;
-    const data = await quotationService.simulate(customerId, storeId, targetYearMonth, adjustmentPct || 0);
+    const { storeId, targetYearMonth, adjustmentPct } = req.body;
+    const data = await quotationService.simulate(storeId, targetYearMonth, adjustmentPct || 0);
     res.json({ success: true, data });
   } catch (error: any) {
     res.status(error.statusCode || 500).json({ success: false, message: error.message });

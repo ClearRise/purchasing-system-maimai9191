@@ -51,19 +51,16 @@ export interface ISupplier {
 export interface IStore {
   id: number;
   name: string;
+  rank?: string;
   groupName?: string;
   location?: string;
-  isActive: boolean;
-}
-
-export interface ICustomer {
-  id: number;
-  name: string;
-  rank: string;
   nameKana?: string;
+  nameAbbr?: string;
   email?: string;
-  stores?: IStore[];
+  ccEmail?: string;
   note?: string;
+  products?: IProduct[];
+  productCount?: number;
   isActive: boolean;
 }
 
@@ -91,13 +88,11 @@ export interface IProduct {
 export interface IQuotation {
   id: number;
   quotationNo: string;
-  customerId: number;
   storeId: number;
   periodStart: string;
   periodEnd: string;
   status: string;
   note?: string;
-  customer?: ICustomer;
   store?: IStore;
   lines?: IQuotationLine[];
 }

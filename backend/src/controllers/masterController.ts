@@ -37,19 +37,30 @@ export const listStores = handle(async (req, res) => {
   res.json({ success: true, data });
 });
 
+export const getStore = handle(async (req, res) => {
+  const data = await masterService.getStore(Number(req.params.id));
+  res.json({ success: true, data });
+});
+
 export const createStore = handle(async (req, res) => {
   const data = await masterService.createStore(req.body);
-  res.status(201).json({ success: true, message: '店舗を登録しました', data });
+  res.status(201).json({ success: true, message: '得意先を登録しました', data });
 });
 
 export const updateStore = handle(async (req, res) => {
   const data = await masterService.updateStore(Number(req.params.id), req.body);
-  res.json({ success: true, message: '店舗を更新しました', data });
+  res.json({ success: true, message: '得意先を更新しました', data });
 });
 
 export const deleteStore = handle(async (req, res) => {
   await masterService.deleteStore(Number(req.params.id));
-  res.json({ success: true, message: '店舗を削除しました' });
+  res.json({ success: true, message: '得意先を削除しました' });
+});
+
+export const replaceStoreProducts = handle(async (req, res) => {
+  const productIds = Array.isArray(req.body?.productIds) ? req.body.productIds : [];
+  const data = await masterService.replaceStoreProducts(Number(req.params.id), productIds.map(Number));
+  res.json({ success: true, message: '取扱商品を更新しました', data });
 });
 
 export const listCategories = handle(async (_req, res) => {
@@ -61,33 +72,6 @@ export const replaceCategories = handle(async (req, res) => {
   const values = Array.isArray(req.body?.values) ? req.body.values : [];
   const data = await masterService.replaceCategories(values);
   res.json({ success: true, message: 'カテゴリを更新しました', data });
-});
-
-export const listCustomers = handle(async (req, res) => {
-  const data = await masterService.listCustomers(req.query);
-  res.json({ success: true, data });
-});
-
-export const getCustomer = handle(async (req, res) => {
-  const data = await masterService.getCustomer(Number(req.params.id));
-  res.json({ success: true, data });
-});
-
-export const createCustomer = handle(async (req, res) => {
-  const { storeIds, ...body } = req.body;
-  const data = await masterService.createCustomer(body, storeIds);
-  res.status(201).json({ success: true, message: '得意先を登録しました', data });
-});
-
-export const updateCustomer = handle(async (req, res) => {
-  const { storeIds, ...body } = req.body;
-  const data = await masterService.updateCustomer(Number(req.params.id), body, storeIds);
-  res.json({ success: true, message: '得意先を更新しました', data });
-});
-
-export const deleteCustomer = handle(async (req, res) => {
-  await masterService.deleteCustomer(Number(req.params.id));
-  res.json({ success: true, message: '得意先を削除しました' });
 });
 
 export const listProducts = handle(async (req, res) => {
@@ -111,7 +95,7 @@ export const createProduct = handle(async (req, res) => {
   const linked = Boolean(body.productId);
   res.status(201).json({
     success: true,
-    message: linked ? '既存商品を店舗に追加しました' : '商品を登録しました',
+    message: linked ? '既存商品を得意先に追加しました' : '商品を登録しました',
     data,
   });
 });
@@ -127,7 +111,7 @@ export const deleteProduct = handle(async (req, res) => {
   await masterService.deleteProduct(Number(req.params.id), storeId);
   res.json({
     success: true,
-    message: storeId ? '店舗から商品を外しました' : '商品を削除しました',
+    message: storeId ? '得意先から商品を外しました' : '商品を削除しました',
   });
 });
 

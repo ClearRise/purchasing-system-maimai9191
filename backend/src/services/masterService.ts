@@ -2,17 +2,21 @@ import { Op } from 'sequelize';
 import {
   Supplier,
   Store,
-  Customer,
   Category,
   Product,
   ProductStore,
   ProductSupplier,
-  CustomerStore,
   LookupOption,
 } from '@/models';
 import CustomError from '@/utils/customError';
 import { buildPagination, parsePagination, pageWindow, searchCondition } from '@/utils/pagination';
 import { toProductDto, toProductDtoList } from '@/utils/productDto';
+import { CUSTOMER_RANKS, type CustomerRank } from '@/config/constants';
+
+function normalizeRank(raw: unknown): CustomerRank {
+  const v = String(raw || 'C').toUpperCase();
+  return (CUSTOMER_RANKS as readonly string[]).includes(v) ? (v as CustomerRank) : 'C';
+}
 
 class MasterService {
   // --- Suppliers ---
@@ -44,33 +48,135 @@ class MasterService {
     await item.update({ isActive: false });
   }
 
-  // --- Stores ---
+  // --- Stores (= 得意先) ---
   async listStores(query: Record<string, unknown>) {
     const { page, limit, search, sortBy, sortOrder } = parsePagination(query);
-    const where = { isActive: true, ...searchCondition(['name', 'groupName'], search) };
+    const where = {
+      isActive: true,
+      ...searchCondition(['name', 'groupName', 'nameKana', 'nameAbbr'], search),
+    };
+    if (query.rank) (where as any).rank = query.rank;
     const { count, rows } = await Store.findAndCountAll({
       where,
+      include: [
+        {
+          model: Product,
+          as: 'products',
+          attributes: ['id'],
+          where: { isActive: true },
+          required: false,
+          through: { attributes: [] },
+        },
+      ],
       ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
+      distinct: true,
     });
-    return buildPagination(rows, count, page, limit);
+    const data = rows.map((row) => {
+      const json = row.toJSON() as any;
+      const productCount = Array.isArray(json.products) ? json.products.length : 0;
+      delete json.products;
+      return { ...json, productCount };
+    });
+    return buildPagination(data, count, page, limit);
   }
 
-  async createStore(data: Partial<Store>) {
-    return Store.create({ ...data, isActive: true } as Store);
+  async getStore(id: number) {
+    const item = await Store.findByPk(id, {
+      include: [
+        {
+          model: Product,
+          as: 'products',
+          where: { isActive: true },
+          required: false,
+          through: { attributes: [] },
+          include: [
+            { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
+            { model: LookupOption, as: 'unitOption', attributes: ['id', 'value', 'kind'] },
+            { model: LookupOption, as: 'specOption', attributes: ['id', 'value', 'kind'] },
+          ],
+        },
+      ],
+    });
+    if (!item || !item.isActive) throw new CustomError('得意先が見つかりません', 404);
+    const json = item.toJSON() as any;
+    const productModels = ((item as any).products || []) as Product[];
+    return {
+      ...json,
+      products: toProductDtoList(productModels),
+    };
   }
 
-  async updateStore(id: number, data: Partial<Store>) {
+  async createStore(data: Record<string, unknown>) {
+    const { productIds, ...rest } = data;
+    const store = await Store.create({
+      ...rest,
+      rank: normalizeRank(rest.rank),
+      isActive: true,
+    } as Store);
+    if (Array.isArray(productIds)) {
+      await this.replaceStoreProducts(store.id, productIds.map(Number));
+    }
+    return this.getStore(store.id);
+  }
+
+  async updateStore(id: number, data: Record<string, unknown>) {
     const item = await Store.findByPk(id);
-    if (!item) throw new CustomError('店舗が見つかりません', 404);
-    await item.update(data);
-    return item;
+    if (!item) throw new CustomError('得意先が見つかりません', 404);
+    const { productIds, ...rest } = data;
+    const patch: Record<string, unknown> = { ...rest };
+    if ('rank' in rest) patch.rank = normalizeRank(rest.rank);
+    await item.update(patch);
+    if (Array.isArray(productIds)) {
+      await this.replaceStoreProducts(id, productIds.map(Number));
+    }
+    return this.getStore(id);
   }
 
   async deleteStore(id: number) {
     const item = await Store.findByPk(id);
-    if (!item) throw new CustomError('店舗が見つかりません', 404);
+    if (!item) throw new CustomError('得意先が見つかりません', 404);
     await item.update({ isActive: false });
+  }
+
+  /** Replace the product assortment for a 得意先. */
+  async replaceStoreProducts(storeId: number, productIds: number[]) {
+    const store = await Store.findByPk(storeId);
+    if (!store || !store.isActive) throw new CustomError('得意先が見つかりません', 404);
+
+    const unique = [...new Set(productIds.filter((id) => Number.isFinite(id) && id > 0))];
+    if (unique.length) {
+      const found = await Product.findAll({
+        where: { id: unique, isActive: true },
+        attributes: ['id'],
+      });
+      if (found.length !== unique.length) {
+        throw new CustomError('存在しない商品が含まれています', 400);
+      }
+    }
+
+    await ProductStore.destroy({ where: { storeId } });
+    if (unique.length) {
+      await ProductStore.bulkCreate(unique.map((productId) => ({ productId, storeId })));
+    }
+    return this.getStore(storeId);
+  }
+
+  async linkProductToStore(productId: number, storeId: number) {
+    const product = await Product.findByPk(productId);
+    if (!product || !product.isActive) throw new CustomError('商品が見つかりません', 404);
+    const store = await Store.findByPk(storeId);
+    if (!store || !store.isActive) throw new CustomError('得意先が見つかりません', 404);
+
+    const existing = await ProductStore.findOne({ where: { productId, storeId } });
+    if (existing) throw new CustomError('この得意先には既に同じ商品が登録されています', 400);
+
+    await ProductStore.create({ productId, storeId });
+    return this.getProduct(productId);
+  }
+
+  async unlinkProductFromStore(productId: number, storeId: number) {
+    await ProductStore.destroy({ where: { productId, storeId } });
   }
 
   // --- Categories ---
@@ -148,55 +254,6 @@ class MasterService {
 
   async createCategory(data: Partial<Category>) {
     return Category.create(data as Category);
-  }
-
-  // --- Customers ---
-  async listCustomers(query: Record<string, unknown>) {
-    const { page, limit, search, sortBy, sortOrder } = parsePagination(query);
-    const where: Record<string, unknown> = { isActive: true, ...searchCondition(['name', 'nameKana'], search) };
-    if (query.rank) where.rank = query.rank;
-    const { count, rows } = await Customer.findAndCountAll({
-      where,
-      include: [{ model: Store, as: 'stores', through: { attributes: [] } }],
-      ...pageWindow(page, limit),
-      order: [[sortBy, sortOrder]],
-    });
-    return buildPagination(rows, count, page, limit);
-  }
-
-  async getCustomer(id: number) {
-    const item = await Customer.findByPk(id, {
-      include: [{ model: Store, as: 'stores', through: { attributes: [] } }],
-    });
-    if (!item) throw new CustomError('得意先が見つかりません', 404);
-    return item;
-  }
-
-  async createCustomer(data: Record<string, unknown>, storeIds?: number[]) {
-    const customer = await Customer.create({ ...data, isActive: true } as Customer);
-    if (storeIds?.length) {
-      await CustomerStore.bulkCreate(storeIds.map((storeId) => ({ customerId: customer.id, storeId })));
-    }
-    return this.getCustomer(customer.id);
-  }
-
-  async updateCustomer(id: number, data: Record<string, unknown>, storeIds?: number[]) {
-    const item = await Customer.findByPk(id);
-    if (!item) throw new CustomError('得意先が見つかりません', 404);
-    await item.update(data);
-    if (storeIds) {
-      await CustomerStore.destroy({ where: { customerId: id } });
-      if (storeIds.length) {
-        await CustomerStore.bulkCreate(storeIds.map((storeId) => ({ customerId: id, storeId })));
-      }
-    }
-    return this.getCustomer(id);
-  }
-
-  async deleteCustomer(id: number) {
-    const item = await Customer.findByPk(id);
-    if (!item) throw new CustomError('得意先が見つかりません', 404);
-    await item.update({ isActive: false });
   }
 
   // --- Products ---
@@ -384,25 +441,12 @@ class MasterService {
     return toProductDto(item);
   }
 
-  async linkProductToStore(productId: number, storeId: number) {
-    const product = await Product.findByPk(productId);
-    if (!product || !product.isActive) throw new CustomError('商品が見つかりません', 404);
-    const store = await Store.findByPk(storeId);
-    if (!store || !store.isActive) throw new CustomError('店舗が見つかりません', 404);
-
-    const existing = await ProductStore.findOne({ where: { productId, storeId } });
-    if (existing) throw new CustomError('この店舗には既に同じ商品が登録されています', 400);
-
-    await ProductStore.create({ productId, storeId });
-    return this.getProduct(productId);
-  }
-
   async createProduct(data: Record<string, unknown>, supplierIds?: number[]) {
     const storeId = data.storeId != null ? Number(data.storeId) : undefined;
     const existingProductId = data.productId != null ? Number(data.productId) : undefined;
 
     if (existingProductId) {
-      if (!storeId) throw new CustomError('店舗を指定してください', 400);
+      if (!storeId) throw new CustomError('得意先を指定してください', 400);
       return this.linkProductToStore(existingProductId, storeId);
     }
 
@@ -425,10 +469,11 @@ class MasterService {
         const linked = await ProductStore.findOne({
           where: { productId: existing.id, storeId },
         });
-        if (linked) throw new CustomError('この店舗には既に同じ商品が登録されています', 400);
+        if (linked) throw new CustomError('この得意先には既に同じ商品が登録されています', 400);
         await ProductStore.create({ productId: existing.id, storeId });
+        return this.getProduct(existing.id);
       }
-      return this.getProduct(existing.id);
+      throw new CustomError('同じ品名の商品が既に登録されています', 400);
     }
 
     const product = await Product.create({

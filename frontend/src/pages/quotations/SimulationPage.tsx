@@ -9,7 +9,7 @@ import PageHeader from 'src/components/common/PageHeader';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
 import { pageTableRootSx, selectorBarSx, tableScrollPaperSx } from 'src/constants/layout';
-import type { ICustomer, IStore } from 'src/types';
+import type { IStore } from 'src/types';
 
 type SimLine = {
   productId: number;
@@ -25,8 +25,8 @@ type SimLine = {
 type SimMeta = {
   marginRate: number;
   minMargin: number;
-  customerName?: string;
-  customerRank?: string;
+  storeName?: string;
+  storeRank?: string;
 };
 
 const ADJUST_PRESETS = [-10, -5, 0, 5, 10] as const;
@@ -51,9 +51,7 @@ function applyAdjustment(lines: SimLine[], adjustmentPct: number, minMargin: num
 
 const SimulationPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const [customers, setCustomers] = useState<ICustomer[]>([]);
   const [stores, setStores] = useState<IStore[]>([]);
-  const [customerId, setCustomerId] = useState('');
   const [storeId, setStoreId] = useState('');
   const [targetYearMonth, setTargetYearMonth] = useState('');
   const [adjustmentPct, setAdjustmentPct] = useState(0);
@@ -67,20 +65,19 @@ const SimulationPage: React.FC = () => {
     setTargetYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
 
     Promise.all([
-      api.get(endpoints.masters.customers),
+      api.get(endpoints.masters.stores),
       api.get(endpoints.masters.lookup),
-    ]).then(([cRes, lRes]) => {
-      const loadedCustomers: ICustomer[] = cRes.data.data.data || [];
-      const loadedStores: IStore[] = lRes.data.data.stores || [];
-      setCustomers(loadedCustomers);
+    ]).then(([sRes, lRes]) => {
+      const fromStores: IStore[] = sRes.data.data.data || sRes.data.data || [];
+      const fromLookup: IStore[] = lRes.data.data.stores || [];
+      const loadedStores = fromStores.length ? fromStores : fromLookup;
       setStores(loadedStores);
-      if (loadedCustomers.length) setCustomerId(String(loadedCustomers[0].id));
       if (loadedStores.length) setStoreId(String(loadedStores[0].id));
     });
   }, []);
 
   const fetchBase = useCallback(async () => {
-    if (!customerId || !storeId || !targetYearMonth) {
+    if (!storeId || !targetYearMonth) {
       setBaseLines([]);
       setMeta(null);
       setFetched(false);
@@ -90,7 +87,6 @@ const SimulationPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await api.post(endpoints.quotations.simulate, {
-        customerId: Number(customerId),
         storeId: Number(storeId),
         targetYearMonth,
         adjustmentPct: 0,
@@ -111,8 +107,8 @@ const SimulationPage: React.FC = () => {
       setMeta({
         marginRate: data.marginRate,
         minMargin: data.minMargin,
-        customerName: data.customer?.name,
-        customerRank: data.customer?.rank,
+        storeName: data.store?.name,
+        storeRank: data.store?.rank,
       });
       setFetched(true);
     } catch (err: any) {
@@ -125,9 +121,8 @@ const SimulationPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [customerId, storeId, targetYearMonth, enqueueSnackbar]);
+  }, [storeId, targetYearMonth, enqueueSnackbar]);
 
-  // Auto-fetch when customer / store / month change (debounced)
   useEffect(() => {
     const timer = window.setTimeout(() => {
       fetchBase();
@@ -152,7 +147,7 @@ const SimulationPage: React.FC = () => {
     return { count: lines.length, alerts, currentTotal, scenarioTotal, avgScenarioMargin };
   }, [lines]);
 
-  const selectedCustomer = customers.find((c) => String(c.id) === customerId);
+  const selectedStore = stores.find((s) => String(s.id) === storeId);
 
   return (
     <Box sx={pageTableRootSx}>
@@ -166,28 +161,13 @@ const SimulationPage: React.FC = () => {
           select
           size="small"
           label="得意先"
-          value={customerId}
-          onChange={(e) => setCustomerId(e.target.value)}
-          sx={fieldSx}
-        >
-          {customers.map((c) => (
-            <MenuItem key={c.id} value={String(c.id)}>
-              {c.name}（{c.rank}）
-            </MenuItem>
-          ))}
-        </TextField>
-
-        <TextField
-          select
-          size="small"
-          label="店舗"
           value={storeId}
           onChange={(e) => setStoreId(e.target.value)}
           sx={fieldSx}
         >
           {stores.map((s) => (
             <MenuItem key={s.id} value={String(s.id)}>
-              {s.name}
+              {s.name}{s.rank ? `（${s.rank}）` : ''}
             </MenuItem>
           ))}
         </TextField>
@@ -205,7 +185,7 @@ const SimulationPage: React.FC = () => {
         {meta && (
           <Typography variant="body2" color="text.secondary" sx={{ alignSelf: 'center' }}>
             基準粗利 {meta.marginRate}% ／ 最低 {meta.minMargin}%
-            {selectedCustomer ? ` ／ ${selectedCustomer.name}` : ''}
+            {selectedStore ? ` ／ ${selectedStore.name}${selectedStore.rank ? `（${selectedStore.rank}）` : ''}` : ''}
           </Typography>
         )}
       </Paper>
@@ -293,9 +273,9 @@ const SimulationPage: React.FC = () => {
           </Box>
         )}
 
-        {!customerId || !storeId ? (
+        {!storeId ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>
-            <Typography color="text.secondary">得意先と店舗を選択してください</Typography>
+            <Typography color="text.secondary">得意先を選択してください</Typography>
           </Box>
         ) : fetched && lines.length === 0 && !loading ? (
           <Box sx={{ p: 4, textAlign: 'center' }}>

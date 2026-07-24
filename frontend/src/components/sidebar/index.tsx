@@ -14,7 +14,6 @@ import { COMPANY_NAME, SYSTEM_NAME, LOGO_URL } from 'src/constants/config';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import StoreOutlinedIcon from '@mui/icons-material/StoreOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
-import PeopleOutlinedIcon from '@mui/icons-material/PeopleOutlined';
 import LocalShippingOutlinedIcon from '@mui/icons-material/LocalShippingOutlined';
 import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
 import CompareArrowsOutlinedIcon from '@mui/icons-material/CompareArrowsOutlined';
@@ -69,9 +68,8 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       title: 'マスタ管理',
       items: [
         { label: '発注先', path: Path.Suppliers, icon: <LocalShippingOutlinedIcon fontSize="small" />, show: perms.canManageMasters },
-        { label: '店舗', path: Path.Stores, icon: <StoreOutlinedIcon fontSize="small" />, show: perms.canManageMasters || perms.isSales },
+        { label: '得意先', path: Path.Stores, icon: <StoreOutlinedIcon fontSize="small" />, show: perms.canManageMasters || perms.canManageCustomers || perms.isSales },
         { label: '商品', path: Path.Products, icon: <Inventory2OutlinedIcon fontSize="small" />, show: true },
-        { label: '得意先', path: Path.Customers, icon: <PeopleOutlinedIcon fontSize="small" />, show: perms.canManageCustomers },
       ],
     },
     {

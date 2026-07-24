@@ -13,7 +13,6 @@ import DashboardPage from 'src/pages/Dashboard';
 import SuppliersPage from 'src/pages/masters/SuppliersPage';
 import StoresPage from 'src/pages/masters/StoresPage';
 import ProductsPage from 'src/pages/masters/ProductsPage';
-import CustomersPage from 'src/pages/masters/CustomersPage';
 import PurchasePricesPage from 'src/pages/purchase/PurchasePricesPage';
 import PriceComparePage from 'src/pages/purchase/PriceComparePage';
 import QuotationListPage from 'src/pages/quotations/QuotationListPage';
@@ -44,7 +43,7 @@ const AppRoutes: React.FC = () => {
           <Route path={Path.Suppliers} element={<SuppliersPage />} />
           <Route path={Path.Stores} element={<StoresPage />} />
           <Route path={Path.Products} element={<ProductsPage />} />
-          <Route path={Path.Customers} element={<CustomersPage />} />
+          <Route path={Path.Customers} element={<Navigate to={Path.Stores} replace />} />
           <Route path={Path.PurchasePrices} element={<PurchasePricesPage />} />
           <Route path={Path.PriceCompare} element={<PriceComparePage />} />
           <Route path="/purchase-prices/history" element={<Navigate to={Path.PriceCompare} replace />} />

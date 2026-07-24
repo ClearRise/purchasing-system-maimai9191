@@ -3,11 +3,9 @@ import sequelize from '@/config/database';
 import {
   Quotation,
   QuotationLine,
-  Customer,
   Store,
   Product,
   RankMarginSetting,
-  PurchasePrice,
   Category,
   LookupOption,
 } from '@/models';
@@ -36,7 +34,6 @@ async function loadStoreProducts(storeId: number) {
 }
 
 interface CreateQuotationInput {
-  customerId: number;
   storeId: number;
   periodStart: string;
   periodEnd: string;
@@ -57,13 +54,12 @@ class QuotationService {
     const { page, limit, sortBy, sortOrder } = parsePagination(query);
     const where: Record<string, unknown> = {};
     if (query.status) where.status = query.status;
-    if (query.customerId) where.customerId = Number(query.customerId);
+    if (query.storeId) where.storeId = Number(query.storeId);
 
     const { count, rows } = await Quotation.findAndCountAll({
       where,
       include: [
-        { model: Customer, as: 'customer', attributes: ['id', 'name', 'rank'] },
-        { model: Store, as: 'store', attributes: ['id', 'name'] },
+        { model: Store, as: 'store', attributes: ['id', 'name', 'rank', 'groupName'] },
       ],
       ...pageWindow(page, limit),
       order: [[sortBy, sortOrder]],
@@ -73,10 +69,7 @@ class QuotationService {
 
   async getById(id: number) {
     const quotation = await Quotation.findByPk(id, {
-      include: [
-        { model: Customer, as: 'customer' },
-        { model: Store, as: 'store' },
-      ],
+      include: [{ model: Store, as: 'store' }],
     });
     if (!quotation) throw new CustomError('見積書が見つかりません', 404);
 
@@ -89,10 +82,10 @@ class QuotationService {
   }
 
   async create(input: CreateQuotationInput, userId: number) {
-    const customer = await Customer.findByPk(input.customerId);
-    if (!customer) throw new CustomError('得意先が見つかりません', 404);
+    const store = await Store.findByPk(input.storeId);
+    if (!store || !store.isActive) throw new CustomError('得意先が見つかりません', 404);
 
-    const margin = await RankMarginSetting.findOne({ where: { rank: customer.rank } });
+    const margin = await RankMarginSetting.findOne({ where: { rank: store.rank } });
     const marginRate = margin ? Number(margin.defaultMarginRate) : 25;
 
     const products = await loadStoreProducts(input.storeId);
@@ -104,7 +97,6 @@ class QuotationService {
       const quotation = await Quotation.create(
         {
           quotationNo,
-          customerId: input.customerId,
           storeId: input.storeId,
           periodStart: new Date(input.periodStart),
           periodEnd: new Date(input.periodEnd),
@@ -117,14 +109,20 @@ class QuotationService {
 
       let lineNo = 1;
       for (const product of products) {
-        const purchasePrice = await purchasePriceService.getBestPrice(
+        const bestPrice = await purchasePriceService.getBestPrice(
           product.id,
           input.targetYearMonth,
           product.defaultSupplierId || undefined
         );
-        if (purchasePrice == null) continue;
-
-        const autoQuotePrice = Math.round(purchasePrice * (1 + marginRate / 100));
+        const hasPrice = bestPrice != null;
+        const purchasePrice = hasPrice ? bestPrice : 0;
+        const autoQuotePrice = hasPrice
+          ? Math.round(purchasePrice * (1 + marginRate / 100))
+          : 0;
+        const noteParts = [
+          product.note?.trim() || '',
+          hasPrice ? '' : '仕入価格未登録',
+        ].filter(Boolean);
 
         await QuotationLine.create(
           {
@@ -143,7 +141,7 @@ class QuotationService {
             autoQuotePrice,
             finalQuotePrice: autoQuotePrice,
             isVisible: true,
-            note: product.note,
+            note: noteParts.length ? noteParts.join(' / ') : undefined,
           },
           { transaction }
         );
@@ -202,11 +200,11 @@ class QuotationService {
     }
   }
 
-  async simulate(customerId: number, storeId: number, targetYearMonth: string, adjustmentPct = 0) {
-    const customer = await Customer.findByPk(customerId);
-    if (!customer) throw new CustomError('得意先が見つかりません', 404);
+  async simulate(storeId: number, targetYearMonth: string, adjustmentPct = 0) {
+    const store = await Store.findByPk(storeId);
+    if (!store || !store.isActive) throw new CustomError('得意先が見つかりません', 404);
 
-    const margin = await RankMarginSetting.findOne({ where: { rank: customer.rank } });
+    const margin = await RankMarginSetting.findOne({ where: { rank: store.rank } });
     const marginRate = margin ? Number(margin.defaultMarginRate) : 25;
     const minMargin = margin ? Number(margin.minMarginRate) : 15;
 
@@ -214,13 +212,18 @@ class QuotationService {
     const results = [];
 
     for (const product of products) {
-      const purchasePrice = await purchasePriceService.getBestPrice(product.id, targetYearMonth);
-      if (purchasePrice == null) continue;
+      const bestPrice = await purchasePriceService.getBestPrice(product.id, targetYearMonth);
+      const purchasePrice = bestPrice ?? 0;
+      const hasPrice = bestPrice != null;
 
-      const currentPrice = Math.round(purchasePrice * (1 + marginRate / 100));
-      const scenarioPrice = Math.round(currentPrice * (1 + adjustmentPct / 100));
-      const currentMargin = ((currentPrice - purchasePrice) / purchasePrice) * 100;
-      const scenarioMargin = ((scenarioPrice - purchasePrice) / purchasePrice) * 100;
+      const currentPrice = hasPrice ? Math.round(purchasePrice * (1 + marginRate / 100)) : 0;
+      const scenarioPrice = hasPrice ? Math.round(currentPrice * (1 + adjustmentPct / 100)) : 0;
+      const currentMargin = hasPrice && purchasePrice > 0
+        ? ((currentPrice - purchasePrice) / purchasePrice) * 100
+        : 0;
+      const scenarioMargin = hasPrice && purchasePrice > 0
+        ? ((scenarioPrice - purchasePrice) / purchasePrice) * 100
+        : 0;
 
       results.push({
         productId: product.id,
@@ -234,11 +237,12 @@ class QuotationService {
         currentMarginRate: Math.round(currentMargin * 100) / 100,
         scenarioMarginRate: Math.round(scenarioMargin * 100) / 100,
         priceDiff: scenarioPrice - currentPrice,
-        alert: scenarioMargin < minMargin,
+        alert: hasPrice ? scenarioMargin < minMargin : true,
+        missingPurchasePrice: !hasPrice,
       });
     }
 
-    return { customer, marginRate, minMargin, adjustmentPct, lines: results };
+    return { store, marginRate, minMargin, adjustmentPct, lines: results };
   }
 
   private async generateQuotationNo(periodStart: string): Promise<string> {

@@ -189,7 +189,7 @@ const PriceComparePage: React.FC = () => {
 
         <TextField
           select
-          label="店舗"
+          label="得意先"
           value={storeId}
           onChange={(e) => setStoreId(e.target.value)}
           size="small"
