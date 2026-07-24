@@ -17,7 +17,7 @@ const productDetailIncludes = [
   { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
   { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
   { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
-] as const;
+];
 
 async function loadStoreProducts(storeId: number) {
   return Product.findAll({
