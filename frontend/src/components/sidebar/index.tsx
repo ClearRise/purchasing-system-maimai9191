@@ -68,8 +68,8 @@ const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onClose }) => {
       title: 'マスタ管理',
       items: [
         { label: '発注先', path: Path.Suppliers, icon: <LocalShippingOutlinedIcon fontSize="small" />, show: perms.canManageMasters },
-        { label: '得意先', path: Path.Stores, icon: <StoreOutlinedIcon fontSize="small" />, show: perms.canManageMasters || perms.canManageCustomers || perms.isSales },
         { label: '商品', path: Path.Products, icon: <Inventory2OutlinedIcon fontSize="small" />, show: true },
+        { label: '得意先', path: Path.Stores, icon: <StoreOutlinedIcon fontSize="small" />, show: perms.canManageMasters || perms.canManageCustomers || perms.isSales },
       ],
     },
     {

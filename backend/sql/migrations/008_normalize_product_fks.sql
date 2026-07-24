@@ -226,11 +226,20 @@ WHERE a.id > b.id
 CREATE UNIQUE INDEX IF NOT EXISTS uq_product_suppliers_product_supplier
   ON product_suppliers (product_id, supplier_id);
 
-DELETE FROM customer_stores a
-USING customer_stores b
-WHERE a.id > b.id
-  AND a.customer_id = b.customer_id
-  AND a.store_id = b.store_id;
+-- customer_stores only existed before 009_unify_store_customer; skip on fresh DBs.
+DO $$
+BEGIN
+  IF to_regclass('public.customer_stores') IS NOT NULL THEN
+    DELETE FROM customer_stores a
+    USING customer_stores b
+    WHERE a.id > b.id
+      AND a.customer_id = b.customer_id
+      AND a.store_id = b.store_id;
 
-CREATE UNIQUE INDEX IF NOT EXISTS uq_customer_stores_customer_store
-  ON customer_stores (customer_id, store_id);
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_class WHERE relname = 'uq_customer_stores_customer_store'
+    ) THEN
+      EXECUTE 'CREATE UNIQUE INDEX uq_customer_stores_customer_store ON customer_stores (customer_id, store_id)';
+    END IF;
+  END IF;
+END $$;

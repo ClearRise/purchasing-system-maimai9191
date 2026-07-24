@@ -110,6 +110,8 @@ export interface IQuotationLine {
   finalQuotePrice: number;
   isVisible: boolean;
   note?: string;
+  /** True for rows added locally and not yet persisted. */
+  isNew?: boolean;
 }
 
 export interface IProductProfitPoint {

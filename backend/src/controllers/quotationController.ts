@@ -26,8 +26,22 @@ export const createQuotation = async (req: Request, res: Response) => {
     const data = await quotationService.create(req.body, user.id);
     res.status(201).json({ success: true, message: '見積書を作成しました', data });
   } catch (error: any) {
-    logger.error(error);
-    res.status(error.statusCode || 500).json({ success: false, message: error.message });
+    const details = error?.errors?.map((e: any) => ({
+      message: e.message,
+      path: e.path,
+      value: e.value,
+      type: e.type,
+    }));
+    logger.error(error?.original?.message || error.message, {
+      name: error?.name,
+      details,
+      parent: error?.parent?.detail || error?.parent?.message,
+    });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message,
+      ...(process.env.NODE_ENV !== 'production' && details ? { details } : {}),
+    });
   }
 };
 

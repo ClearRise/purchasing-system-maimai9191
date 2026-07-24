@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Autocomplete,
-  Box, Button, CircularProgress, Divider, IconButton, List, ListItem, ListItemText,
-  Paper, TextField, Typography,
+  Box, Button, Checkbox, CircularProgress, Divider, IconButton, List, ListItem,
+  ListItemButton, ListItemIcon, ListItemText, Paper, TextField, Typography,
 } from '@mui/material';
 import CloseOutlinedIcon from '@mui/icons-material/CloseOutlined';
-import DeleteOutlinedIcon from '@mui/icons-material/DeleteOutlined';
 import { useSnackbar } from 'notistack';
 import { api } from 'src/libs/api';
 import endpoints from 'src/libs/endpoints';
@@ -21,7 +19,7 @@ interface StoreProductsPanelProps {
   onSaved: (storeId: number, productCount: number) => void;
 }
 
-/** Side panel to manage 取扱商品 for one 得意先. */
+/** Side panel to manage 取扱商品 for one 得意先 (multi-check catalog). */
 const StoreProductsPanel: React.FC<StoreProductsPanelProps> = ({
   open,
   store,
@@ -30,85 +28,107 @@ const StoreProductsPanel: React.FC<StoreProductsPanelProps> = ({
   onSaved,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
-  const [linkedProducts, setLinkedProducts] = useState<IProduct[]>([]);
-  const [catalogOptions, setCatalogOptions] = useState<CatalogOption[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalog, setCatalog] = useState<CatalogOption[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const fetchCatalog = useCallback(async (search: string) => {
-    setCatalogLoading(true);
-    try {
-      const res = await api.get(endpoints.masters.productsCatalog, {
-        params: {
-          search: search.trim() || undefined,
-        },
-      });
-      setCatalogOptions(res.data.data || []);
-    } catch {
-      setCatalogOptions([]);
-    } finally {
-      setCatalogLoading(false);
-    }
-  }, []);
 
   useEffect(() => {
     if (!open || !store) return;
     let cancelled = false;
     (async () => {
       setLoading(true);
+      setSearch('');
       try {
-        const res = await api.get(endpoints.masters.store(store.id));
+        const [storeRes, catalogRes] = await Promise.all([
+          api.get(endpoints.masters.store(store.id)),
+          api.get(endpoints.masters.productsCatalog),
+        ]);
         if (cancelled) return;
-        setLinkedProducts(res.data.data.products || []);
-        await fetchCatalog('');
+
+        const linked: IProduct[] = storeRes.data.data.products || [];
+        const catalogRows: CatalogOption[] = catalogRes.data.data || [];
+        const byId = new Map<number, CatalogOption>();
+        for (const p of catalogRows) byId.set(p.id, p);
+        for (const p of linked) {
+          if (!byId.has(p.id)) {
+            byId.set(p.id, {
+              id: p.id,
+              productCode: p.productCode,
+              name: p.name,
+              spec: p.spec,
+              unit: p.unit,
+              categoryLabel: p.categoryLabel,
+            });
+          }
+        }
+        setCatalog(Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name, 'ja')));
+        setSelectedIds(new Set(linked.map((p) => p.id)));
       } catch {
         if (!cancelled) {
           enqueueSnackbar('取扱商品の取得に失敗しました', { variant: 'error' });
-          setLinkedProducts([]);
+          setCatalog([]);
+          setSelectedIds(new Set());
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
-  }, [open, store, fetchCatalog, enqueueSnackbar]);
+  }, [open, store, enqueueSnackbar]);
 
-  const linkedIds = useMemo(() => new Set(linkedProducts.map((p) => p.id)), [linkedProducts]);
-  const availableOptions = useMemo(
-    () => catalogOptions.filter((o) => !linkedIds.has(o.id)),
-    [catalogOptions, linkedIds]
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return catalog;
+    return catalog.filter((p) => {
+      const hay = [p.name, p.productCode, p.spec, p.unit, p.categoryLabel]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [catalog, search]);
+
+  const selectedCount = selectedIds.size;
+  const filteredSelectedCount = useMemo(
+    () => filtered.reduce((n, p) => n + (selectedIds.has(p.id) ? 1 : 0), 0),
+    [filtered, selectedIds]
   );
+  const allFilteredSelected = filtered.length > 0 && filteredSelectedCount === filtered.length;
+  const someFilteredSelected = filteredSelectedCount > 0 && !allFilteredSelected;
 
-  const addProduct = (product: CatalogOption) => {
-    if (linkedIds.has(product.id)) return;
-    setLinkedProducts((prev) => [
-      ...prev,
-      {
-        id: product.id,
-        productCode: product.productCode,
-        name: product.name,
-        spec: product.spec,
-        unit: product.unit,
-        categoryLabel: product.categoryLabel,
-        isActive: true,
-      },
-    ]);
-  };
+  const toggleProduct = useCallback((productId: number) => {
+    if (!canEdit) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(productId)) next.delete(productId);
+      else next.add(productId);
+      return next;
+    });
+  }, [canEdit]);
 
-  const removeProduct = (productId: number) => {
-    setLinkedProducts((prev) => prev.filter((p) => p.id !== productId));
+  const toggleAllFiltered = () => {
+    if (!canEdit || filtered.length === 0) return;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        for (const p of filtered) next.delete(p.id);
+      } else {
+        for (const p of filtered) next.add(p.id);
+      }
+      return next;
+    });
   };
 
   const handleSave = async () => {
     if (!store || !canEdit) return;
     setSaving(true);
     try {
-      await api.put(endpoints.masters.storeProducts(store.id), {
-        productIds: linkedProducts.map((p) => p.id),
-      });
+      const productIds = Array.from(selectedIds);
+      await api.put(endpoints.masters.storeProducts(store.id), { productIds });
       enqueueSnackbar('取扱商品を保存しました', { variant: 'success' });
-      onSaved(store.id, linkedProducts.length);
+      onSaved(store.id, productIds.length);
       onClose();
     } catch (err: any) {
       enqueueSnackbar(err.response?.data?.message || '保存に失敗しました', { variant: 'error' });
@@ -122,7 +142,7 @@ const StoreProductsPanel: React.FC<StoreProductsPanelProps> = ({
   return (
     <Paper
       sx={{
-        width: { xs: '100%', md: 400 },
+        width: { xs: '100%', md: 420 },
         flexShrink: 0,
         minHeight: 0,
         display: 'flex',
@@ -145,9 +165,9 @@ const StoreProductsPanel: React.FC<StoreProductsPanelProps> = ({
       </Box>
       <Divider />
 
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-          登録した商品が、見積作成時に明細へ自動で入ります。
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', p: 2, pt: 1.5 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, flexShrink: 0 }}>
+          チェックした商品が見積作成時の明細に入ります。
         </Typography>
 
         {loading ? (
@@ -156,77 +176,103 @@ const StoreProductsPanel: React.FC<StoreProductsPanelProps> = ({
           </Box>
         ) : (
           <>
-            {canEdit && (
-              <Autocomplete
-                options={availableOptions}
-                loading={catalogLoading}
-                getOptionLabel={(option) => option.name}
-                isOptionEqualToValue={(a, b) => a.id === b.id}
-                filterOptions={(x) => x}
-                value={null}
-                onOpen={() => fetchCatalog('')}
-                onInputChange={(_e, value, reason) => {
-                  if (reason === 'reset') return;
-                  fetchCatalog(value);
-                }}
-                onChange={(_e, value) => {
-                  if (value) addProduct(value);
-                }}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    <Box>
-                      <Typography variant="body2">{option.name}</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {[option.unit, option.spec, option.categoryLabel].filter(Boolean).join(' · ')}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    size="small"
-                    label="商品を追加"
-                    placeholder="品名で検索"
-                  />
-                )}
-                sx={{ mb: 1 }}
-              />
-            )}
+            <TextField
+              size="small"
+              fullWidth
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="品名・規格・カテゴリで絞り込み"
+              sx={{ mb: 1, flexShrink: 0 }}
+            />
 
-            {linkedProducts.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-                取扱商品がありません
-              </Typography>
-            ) : (
-              <List dense disablePadding>
-                {linkedProducts.map((p) => (
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
+              {canEdit && filtered.length > 0 && (
+                <>
                   <ListItem
-                    key={p.id}
-                    disableGutters
+                    dense
+                    disablePadding
                     secondaryAction={
-                      canEdit ? (
-                        <IconButton edge="end" size="small" onClick={() => removeProduct(p.id)}>
-                          <DeleteOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      ) : undefined
+                      <Typography variant="caption" color="text.secondary" sx={{ pr: 1 }}>
+                        {filteredSelectedCount}/{filtered.length}
+                      </Typography>
                     }
                   >
-                    <ListItemText
-                      primary={p.name}
-                      secondary={[p.unit, p.spec, p.categoryLabel].filter(Boolean).join(' · ') || undefined}
-                      slotProps={{
-                        primary: { variant: 'body2' },
-                        secondary: { variant: 'caption' },
-                      }}
-                    />
+                    <ListItemButton onClick={toggleAllFiltered} dense>
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <Checkbox
+                          edge="start"
+                          size="small"
+                          checked={allFilteredSelected}
+                          indeterminate={someFilteredSelected}
+                          tabIndex={-1}
+                          disableRipple
+                        />
+                      </ListItemIcon>
+                      <ListItemText
+                        primary="表示中をすべて選択"
+                        slotProps={{ primary: { variant: 'body2' } }}
+                      />
+                    </ListItemButton>
                   </ListItem>
-                ))}
-              </List>
-            )}
+                  <Divider />
+                </>
+              )}
 
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              {linkedProducts.length}件
+              <List dense disablePadding sx={{ flex: 1, overflow: 'auto' }}>
+                {filtered.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 3, textAlign: 'center' }}>
+                    {catalog.length === 0 ? '商品マスタに商品がありません' : '該当する商品がありません'}
+                  </Typography>
+                ) : (
+                  filtered.map((p) => {
+                    const checked = selectedIds.has(p.id);
+                    const secondary = [p.unit, p.spec, p.categoryLabel].filter(Boolean).join(' · ') || undefined;
+                    return (
+                      <ListItem key={p.id} dense disablePadding>
+                        <ListItemButton
+                          onClick={() => toggleProduct(p.id)}
+                          disabled={!canEdit}
+                          dense
+                        >
+                          <ListItemIcon sx={{ minWidth: 36 }}>
+                            <Checkbox
+                              edge="start"
+                              size="small"
+                              checked={checked}
+                              tabIndex={-1}
+                              disableRipple
+                              disabled={!canEdit}
+                            />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={p.name}
+                            secondary={secondary}
+                            slotProps={{
+                              primary: { variant: 'body2' },
+                              secondary: { variant: 'caption' },
+                            }}
+                          />
+                        </ListItemButton>
+                      </ListItem>
+                    );
+                  })
+                )}
+              </List>
+            </Box>
+
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, flexShrink: 0 }}>
+              選択中 {selectedCount}件 / 全{catalog.length}件
             </Typography>
           </>
         )}

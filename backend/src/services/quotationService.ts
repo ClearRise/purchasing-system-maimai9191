@@ -13,6 +13,12 @@ import CustomError from '@/utils/customError';
 import { buildPagination, parsePagination, pageWindow } from '@/utils/pagination';
 import purchasePriceService from '@/services/purchasePriceService';
 
+const productDetailIncludes = [
+  { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
+  { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
+  { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
+] as const;
+
 async function loadStoreProducts(storeId: number) {
   return Product.findAll({
     where: { isActive: true },
@@ -25,12 +31,63 @@ async function loadStoreProducts(storeId: number) {
         where: { id: storeId },
         required: true,
       },
-      { model: Category, as: 'category', attributes: ['id', 'name', 'categoryCode'] },
-      { model: LookupOption, as: 'unitOption', attributes: ['id', 'value'] },
-      { model: LookupOption, as: 'specOption', attributes: ['id', 'value'] },
+      ...productDetailIncludes,
     ],
     order: [['id', 'ASC']],
   });
+}
+
+async function loadProductForLine(productId: number) {
+  const product = await Product.findByPk(productId, {
+    include: [...productDetailIncludes],
+  });
+  if (!product || !product.isActive) {
+    throw new CustomError('商品が見つかりません', 404);
+  }
+  return product;
+}
+
+function yearMonthFromDate(value: string | Date): string {
+  const d = value instanceof Date ? value : new Date(value);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+async function buildLineFields(
+  product: Product,
+  targetYearMonth: string,
+  marginRate: number
+) {
+  const bestPrice = await purchasePriceService.getBestPrice(
+    product.id,
+    targetYearMonth,
+    product.defaultSupplierId || undefined
+  );
+  const hasPrice = bestPrice != null;
+  const purchasePrice = hasPrice ? bestPrice : 0;
+  const autoQuotePrice = hasPrice
+    ? Math.round(purchasePrice * (1 + marginRate / 100))
+    : 0;
+  const noteParts = [
+    product.note?.trim() || '',
+    hasPrice ? '' : '仕入価格未登録',
+  ].filter(Boolean);
+
+  return {
+    productId: product.id,
+    categoryCode: (product as any).category?.categoryCode
+      || (product as any).category?.name
+      || undefined,
+    productName: product.name,
+    spec: (product as any).specOption?.value || undefined,
+    unit: (product as any).unitOption?.value || 'PC',
+    purchasePrice,
+    supplierId: product.defaultSupplierId,
+    rankMarginRate: marginRate,
+    autoQuotePrice,
+    finalQuotePrice: autoQuotePrice,
+    isVisible: true,
+    note: noteParts.length ? noteParts.join(' / ') : undefined,
+  };
 }
 
 interface CreateQuotationInput {
@@ -43,7 +100,7 @@ interface CreateQuotationInput {
 
 interface LineUpdate {
   id?: number;
-  productId: number;
+  productId?: number;
   finalQuotePrice?: number;
   isVisible?: boolean;
   note?: string;
@@ -109,39 +166,12 @@ class QuotationService {
 
       let lineNo = 1;
       for (const product of products) {
-        const bestPrice = await purchasePriceService.getBestPrice(
-          product.id,
-          input.targetYearMonth,
-          product.defaultSupplierId || undefined
-        );
-        const hasPrice = bestPrice != null;
-        const purchasePrice = hasPrice ? bestPrice : 0;
-        const autoQuotePrice = hasPrice
-          ? Math.round(purchasePrice * (1 + marginRate / 100))
-          : 0;
-        const noteParts = [
-          product.note?.trim() || '',
-          hasPrice ? '' : '仕入価格未登録',
-        ].filter(Boolean);
-
+        const fields = await buildLineFields(product, input.targetYearMonth, marginRate);
         await QuotationLine.create(
           {
             quotationId: quotation.id,
             lineNo: lineNo++,
-            productId: product.id,
-            categoryCode: (product as any).category?.categoryCode
-              || (product as any).category?.name
-              || undefined,
-            productName: product.name,
-            spec: (product as any).specOption?.value || undefined,
-            unit: (product as any).unitOption?.value || 'PC',
-            purchasePrice,
-            supplierId: product.defaultSupplierId,
-            rankMarginRate: marginRate,
-            autoQuotePrice,
-            finalQuotePrice: autoQuotePrice,
-            isVisible: true,
-            note: noteParts.length ? noteParts.join(' / ') : undefined,
+            ...fields,
           },
           { transaction }
         );
@@ -155,22 +185,74 @@ class QuotationService {
     }
   }
 
+  /**
+   * Sync quotation lines: update existing, create new (productId without id),
+   * delete rows whose id is not included in the payload.
+   */
   async updateLines(id: number, lines: LineUpdate[]) {
     const quotation = await Quotation.findByPk(id);
     if (!quotation) throw new CustomError('見積書が見つかりません', 404);
     if (quotation.status === 'sent') throw new CustomError('送信済みの見積書は編集できません', 400);
 
-    for (const line of lines) {
-      if (!line.id) continue;
-      const existing = await QuotationLine.findOne({ where: { id: line.id, quotationId: id } });
-      if (!existing) continue;
-      await existing.update({
-        finalQuotePrice: line.finalQuotePrice ?? existing.finalQuotePrice,
-        isVisible: line.isVisible ?? existing.isVisible,
-        note: line.note ?? existing.note,
-      });
+    const store = await Store.findByPk(quotation.storeId);
+    if (!store) throw new CustomError('得意先が見つかりません', 404);
+
+    const margin = await RankMarginSetting.findOne({ where: { rank: store.rank } });
+    const marginRate = margin ? Number(margin.defaultMarginRate) : 25;
+    const targetYearMonth = yearMonthFromDate(quotation.periodStart);
+
+    const existingLines = await QuotationLine.findAll({ where: { quotationId: id } });
+    const existingById = new Map(existingLines.map((l) => [l.id, l]));
+    const keepIds = new Set(
+      lines.filter((l) => typeof l.id === 'number' && l.id > 0).map((l) => l.id as number)
+    );
+
+    const transaction = await sequelize.transaction();
+    try {
+      for (const existing of existingLines) {
+        if (!keepIds.has(existing.id)) {
+          await existing.destroy({ transaction });
+        }
+      }
+
+      let lineNo = 1;
+      for (const line of lines) {
+        if (line.id && existingById.has(line.id)) {
+          const existing = existingById.get(line.id)!;
+          await existing.update(
+            {
+              lineNo: lineNo++,
+              finalQuotePrice: line.finalQuotePrice ?? existing.finalQuotePrice,
+              isVisible: line.isVisible ?? existing.isVisible,
+              note: line.note !== undefined ? line.note : existing.note,
+            },
+            { transaction }
+          );
+          continue;
+        }
+
+        if (!line.productId) continue;
+        const product = await loadProductForLine(line.productId);
+        const fields = await buildLineFields(product, targetYearMonth, marginRate);
+        await QuotationLine.create(
+          {
+            quotationId: id,
+            lineNo: lineNo++,
+            ...fields,
+            finalQuotePrice: line.finalQuotePrice ?? fields.finalQuotePrice,
+            isVisible: line.isVisible ?? true,
+            note: line.note !== undefined ? line.note : fields.note,
+          },
+          { transaction }
+        );
+      }
+
+      await transaction.commit();
+      return this.getById(id);
+    } catch (err) {
+      await transaction.rollback();
+      throw err;
     }
-    return this.getById(id);
   }
 
   async updateStatus(id: number, status: 'draft' | 'confirmed' | 'sent') {
@@ -248,8 +330,17 @@ class QuotationService {
   private async generateQuotationNo(periodStart: string): Promise<string> {
     const d = new Date(periodStart);
     const prefix = `EST-${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const count = await Quotation.count({ where: { quotationNo: { [Op.like]: `${prefix}%` } } });
-    return `${prefix}-${String(count + 1).padStart(4, '0')}`;
+    const existing = await Quotation.findAll({
+      attributes: ['quotationNo'],
+      where: { quotationNo: { [Op.like]: `${prefix}-%` } },
+    });
+    let maxSeq = 0;
+    for (const row of existing) {
+      const suffix = row.quotationNo.slice(prefix.length + 1);
+      const n = Number.parseInt(suffix, 10);
+      if (Number.isFinite(n) && n > maxSeq) maxSeq = n;
+    }
+    return `${prefix}-${String(maxSeq + 1).padStart(4, '0')}`;
   }
 }
 

@@ -162,7 +162,7 @@ const QuotationListPage: React.FC = () => {
       const lineCount = Array.isArray(created?.lines) ? created.lines.length : 0;
       if (lineCount === 0) {
         enqueueSnackbar(
-          '見積書を作成しましたが明細が空です。得意先マスタで取扱商品を登録してください。',
+          '見積書を作成しましたが明細が空です。右側の明細から商品を追加してください。',
           { variant: 'warning' }
         );
       } else {
@@ -389,7 +389,7 @@ const QuotationListPage: React.FC = () => {
                 required
                 fullWidth
                 size="small"
-                helperText="その得意先の取扱商品が明細に自動登録されます"
+                helperText="取扱商品が明細に自動登録されます。作成後に商品の追加・削除もできます"
               >
                 {stores.map((s) => (
                   <MenuItem key={s.id} value={String(s.id)}>
